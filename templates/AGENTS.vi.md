@@ -4,6 +4,20 @@
 
 Bạn là **Senior Solution Architect + Tech Lead** cho [Tên Dự Án].
 
+## Tech Stack
+
+> Điền thông tin thực tế của project. Dùng để sinh review checklist phù hợp với stack.
+
+| Component | Giá trị |
+|-----------|---------|
+| Backend language | [LANG_BE] — ví dụ: `Python`, `Go`, `TypeScript/Node`, `Java`, `PHP` |
+| Backend framework | [FRAMEWORK_BE] — ví dụ: `Flask`, `FastAPI`, `Gin`, `Spring Boot`, `NestJS` |
+| Frontend language | [LANG_FE] — ví dụ: `TypeScript`, `JavaScript`, `Dart` |
+| Frontend framework | [FRAMEWORK_FE] — ví dụ: `Next.js`, `React`, `Vue`, `Flutter` |
+| Architecture | [ARCH] — ví dụ: `layered`, `MVC`, `hexagonal`, `microservices`, `CQRS` |
+| Async / Queue | [ASYNC] — ví dụ: `Celery`, `BullMQ`, `Sidekiq`, `Kafka`, `none` |
+| Database | [DATABASE] — ví dụ: `PostgreSQL`, `MongoDB`, `MySQL`, `Redis` |
+
 ## Cấu trúc Project
 
 ```
@@ -62,23 +76,41 @@ python scripts/code_research.py --scope [BE_DIR] <keyword>
 
 Sau mỗi lần implement hoặc fix, tự kiểm tra:
 
-**Conventions**
-- [ ] Không `any` type (TS) · Không `print()` (Python) · Không hardcode secrets
+**Universal (mọi stack)**
+- [ ] Không hardcode secrets, credentials, magic numbers
 - [ ] Tên hàm/biến rõ ràng, self-documenting
-
-**Architecture**
-- [ ] Đúng layer: controller → service → repository (không skip)
-- [ ] Service không query DB trực tiếp · Controller không chứa business logic
-
-**Correctness**
-- [ ] Tất cả error path được handle, không silent fail
-- [ ] Async task: có retry, idempotency key, dead-letter handling
-- [ ] Edge case đã xét (null, empty, concurrent, timeout)
-
-**Contract**
-- [ ] API response đúng format: `{ success, data, error, meta }`
+- [ ] Tất cả error path được handle — không silent fail
 - [ ] API contract không thay đổi ngầm — nếu có → cập nhật docs ngay
 - [ ] Flow chính không bị phá
+
+**Language-specific ([LANG_BE] / [LANG_FE])**
+
+> Thay bằng rules phù hợp với ngôn ngữ thực tế sau khi hoàn thiện template.
+
+| Ngôn ngữ | Rules |
+|----------|-------|
+| Python | Không `print()` · Type hints đầy đủ · f-string |
+| TypeScript | Không `any` · Không `!` non-null trừ khi chắc · strict mode |
+| Go | Check tất cả error return · Không `panic()` trong lib · Context propagation đúng |
+| Java/Kotlin | Không `System.out` · Checked exceptions handled · try-with-resources |
+| Node/JS | Không `console.log` · Không callback hell · Promise/async đúng |
+| PHP | Không `var_dump` · PSR logging · Declare types |
+
+**Architecture-specific ([ARCH])**
+
+| Pattern | Rules |
+|---------|-------|
+| layered | Không skip layer · Controller chỉ delegate · Service không query DB · Repository chỉ data access |
+| MVC | Thin controller · Fat model · View không chứa logic |
+| hexagonal | Domain không import infra · Ports là interface · Adapters implement ports |
+| microservices | Không gọi DB của service khác · Giao tiếp qua API/event |
+| CQRS | Command tách khỏi Query · Read/write model độc lập |
+
+**Async/Queue ([ASYNC])**
+*(Bỏ qua nếu không dùng async)*
+- [ ] Idempotency key · max_retries + exponential backoff · Dead-letter handling
+- [ ] Status transition: `pending → running → done/failed`
+- [ ] FE: loading/error state · race condition · cleanup on unmount
 
 ### Quy tắc đặt tên file
 

@@ -4,6 +4,20 @@
 
 You are a **Senior Solution Architect + Tech Lead** for [Project Name].
 
+## Tech Stack
+
+> Fill in actual project values. Used by the skill to generate a stack-specific review checklist.
+
+| Component | Value |
+|-----------|-------|
+| Backend language | [LANG_BE] — e.g. `Python`, `Go`, `TypeScript/Node`, `Java`, `PHP` |
+| Backend framework | [FRAMEWORK_BE] — e.g. `Flask`, `FastAPI`, `Gin`, `Spring Boot`, `NestJS` |
+| Frontend language | [LANG_FE] — e.g. `TypeScript`, `JavaScript`, `Dart` |
+| Frontend framework | [FRAMEWORK_FE] — e.g. `Next.js`, `React`, `Vue`, `Flutter` |
+| Architecture | [ARCH] — e.g. `layered`, `MVC`, `hexagonal`, `microservices`, `CQRS` |
+| Async / Queue | [ASYNC] — e.g. `Celery`, `BullMQ`, `Sidekiq`, `Kafka`, `none` |
+| Database | [DATABASE] — e.g. `PostgreSQL`, `MongoDB`, `MySQL`, `Redis` |
+
 ## Project Structure
 
 ```
@@ -62,23 +76,41 @@ python scripts/code_research.py --scope [BE_DIR] <keyword>
 
 After every implementation or fix, verify:
 
-**Conventions**
-- [ ] No `any` type (TypeScript) · No `print()` (Python) · No hardcoded secrets
+**Universal (all stacks)**
+- [ ] No hardcoded secrets, credentials, or magic numbers
 - [ ] Function/variable names are clear and self-documenting
-
-**Architecture**
-- [ ] Correct layer order: controller → service → repository (no skipping)
-- [ ] Service does not query DB directly · Controller has no business logic
-
-**Correctness**
 - [ ] All error paths handled — no silent failures
-- [ ] Async tasks: retry logic, idempotency key, dead-letter handling present
-- [ ] Edge cases considered (null, empty, concurrent access, timeout)
-
-**Contract**
-- [ ] API response format: `{ success, data, error, meta }`
 - [ ] API contract not silently changed — if changed, update docs immediately
 - [ ] Core application flow not broken
+
+**Language-specific ([LANG_BE] / [LANG_FE])**
+
+> Replace this table with rules specific to your actual language stack.
+
+| Language | Rules |
+|----------|-------|
+| Python | No `print()` · Full type hints · Use f-strings |
+| TypeScript | No `any` · No unsafe `!` non-null assertion · strict mode |
+| Go | Check all error returns (no `_`) · No `panic()` in library code · Context propagation |
+| Java/Kotlin | No `System.out` · Handle checked exceptions · Use try-with-resources |
+| Node/JS | No `console.log` · No callback hell · Proper async/await |
+| PHP | No `var_dump` · PSR logging · Declare types |
+
+**Architecture-specific ([ARCH])**
+
+| Pattern | Rules |
+|---------|-------|
+| layered | No layer skipping · Controller only delegates · Service owns business logic · Repository only does data access |
+| MVC | Thin controller · Fat model · No business logic in views |
+| hexagonal | Domain has no infra imports · Ports are interfaces · Adapters implement ports |
+| microservices | No cross-service DB calls · Communicate via API/events · Clear service boundaries |
+| CQRS | Commands separate from Queries · Read/write models independent |
+
+**Async/Queue ([ASYNC])**
+*(Skip if no async)*
+- [ ] Idempotency key · max_retries + exponential backoff · Dead-letter handling
+- [ ] Status transitions: `pending → running → done/failed`
+- [ ] FE: loading/error states covered · polling race conditions · cleanup on unmount
 
 ### File Naming
 

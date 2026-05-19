@@ -51,12 +51,33 @@ Không có yêu cầu explicit → **LUÔN ở Planning mode.**
 
 ## Code Review
 
-Sau mỗi lần implement hoặc fix, tự kiểm tra:
+Sau mỗi lần implement hoặc fix, kiểm tra theo stack khai báo trong `CLAUDE.md` (mục Tech Stack):
 
-- **Conventions:** Không `any` type (TS) · Không `print()` (Python) · Không hardcode secrets · Tên rõ ràng
-- **Architecture:** Đúng layer (controller → service → repository) · Không skip layer · Controller không chứa business logic
-- **Correctness:** Tất cả error path được handle · Async task có retry + idempotency · Edge case đã xét
-- **Contract:** API response `{ success, data, error, meta }` · Không thay đổi contract ngầm · Flow chính không bị phá
+**Universal**
+- Không hardcode secrets, credentials, magic numbers · Tên rõ ràng
+- Tất cả error path được handle — không silent fail
+- API contract không thay đổi ngầm → cập nhật docs nếu có
+- Flow chính không bị phá
+
+**Language** (áp dụng rules theo ngôn ngữ trong `CLAUDE.md`)
+- Python → Không `print()` · type hints · f-string
+- TypeScript → Không `any` · không `!` unsafe · strict mode
+- Go → Check tất cả error return · không `panic()` trong lib · context propagation đúng
+- Java/Kotlin → Không `System.out` · checked exceptions · try-with-resources
+- Node/JS → Không `console.log` · async/await đúng
+- PHP → Không `var_dump` · PSR logging · declare types
+
+**Architecture** (áp dụng rules theo pattern trong `CLAUDE.md`)
+- layered → Không skip layer · controller chỉ delegate · service chứa logic · repo chỉ data access
+- MVC → Thin controller · fat model · view không chứa logic
+- hexagonal → Domain không import infra · ports là interface · adapters implement ports
+- microservices → Không gọi DB service khác · giao tiếp qua API/event
+- CQRS → Command tách Query · read/write model độc lập
+
+**Async/Queue** (nếu có)
+- Idempotency key · max_retries + exponential backoff · dead-letter handling
+- Status: `pending → running → done/failed`
+- FE: loading/error state · race condition polling · cleanup on unmount
 
 ## Quy tắc bắt buộc
 

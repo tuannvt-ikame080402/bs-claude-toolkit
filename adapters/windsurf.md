@@ -35,12 +35,33 @@ python ~/.claude/skills/bs-claude-toolkit/scripts/doc_context.py <keyword>
 
 ## Code Review
 
-After every implementation or fix, verify:
+After every implementation or fix, verify against the stack declared in `CLAUDE.md` (Tech Stack section):
 
-- **Conventions:** No `any` type (TS) · No `print()` (Python) · No hardcoded secrets · Clear naming
-- **Architecture:** Correct layer order (controller → service → repository) · No skipping · No business logic in controller
-- **Correctness:** All error paths handled · Async tasks have retry + idempotency · Edge cases covered
-- **Contract:** API response `{ success, data, error, meta }` · No silent contract changes · Core flow intact
+**Universal**
+- No hardcoded secrets, credentials, or magic numbers · Clear naming
+- All error paths handled — no silent failures
+- API contract not silently changed → update docs if changed
+- Core flow not broken
+
+**Language** (match rules to your stack in `CLAUDE.md`)
+- Python → No `print()` · type hints · f-strings
+- TypeScript → No `any` · no unsafe `!` · strict mode
+- Go → Check all errors (no `_`) · no `panic()` in lib · context propagation
+- Java/Kotlin → No `System.out` · handle checked exceptions · try-with-resources
+- Node/JS → No `console.log` · proper async/await
+- PHP → No `var_dump` · PSR logging · declare types
+
+**Architecture** (match rules to your pattern in `CLAUDE.md`)
+- layered → No layer skipping · controller only delegates · service owns logic · repo only accesses data
+- MVC → Thin controller · fat model · no logic in views
+- hexagonal → Domain has no infra imports · ports are interfaces · adapters implement ports
+- microservices → No cross-service DB calls · communicate via API/events
+- CQRS → Commands separate from queries · read/write models independent
+
+**Async/Queue** (if applicable)
+- Idempotency key · max_retries + exponential backoff · dead-letter handling
+- Status: `pending → running → done/failed`
+- FE: loading/error states · polling race conditions · cleanup on unmount
 
 ## Hard Rules
 
