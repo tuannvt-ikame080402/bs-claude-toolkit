@@ -1,41 +1,20 @@
 #!/usr/bin/env python3
 """
-install.py — Cài đặt bs-claude-toolkit vào project hiện tại.
+install.py — Copy scripts vào project để team members dùng mà không cần toolkit.
 
-Chạy từ trong thư mục bs-claude-toolkit:
-    python scripts/install.py [target-dir]
+Chạy từ toolkit hoặc từ project:
+    python ~/.claude/skills/bs-claude-toolkit/scripts/install.py [target-dir]
 
-Nếu không có target-dir, dùng thư mục hiện tại của shell.
+Nếu không có target-dir, copy vào thư mục hiện tại.
 
 Việc sẽ làm:
-  1. Copy scripts/ vào target/scripts/
-  2. Copy .claude/skills/ctx/ vào ~/.claude/skills/ctx/  (global skill)
+    Copy doc_context.py và code_research.py vào target/scripts/
 """
 
 import sys, shutil, os
 from pathlib import Path
 
-TOOLKIT_ROOT = Path(__file__).resolve().parent.parent
-
-
-def copy_scripts(target: Path) -> None:
-    src = TOOLKIT_ROOT / "scripts"
-    dst = target / "scripts"
-    dst.mkdir(parents=True, exist_ok=True)
-    for script in ["doc_context.py", "code_research.py"]:
-        shutil.copy2(src / script, dst / script)
-        print(f"  Copied: {dst / script}")
-
-
-def install_skill() -> None:
-    src = TOOLKIT_ROOT / ".claude" / "skills" / "ctx"
-    home = Path.home()
-    dst = home / ".claude" / "skills" / "ctx"
-    if dst.exists():
-        shutil.rmtree(dst)
-    shutil.copytree(src, dst)
-    print(f"  Skill installed: {dst}")
-    print(f"  Invoke with: /ctx or /ctx backend or /ctx frontend")
+TOOLKIT_SCRIPTS = Path(__file__).resolve().parent
 
 
 def main() -> None:
@@ -43,19 +22,20 @@ def main() -> None:
     target = target.resolve()
 
     if not target.exists():
-        print(f"Error: target directory does not exist: {target}")
+        print(f"Error: directory not found: {target}")
         sys.exit(1)
 
-    print(f"\nInstalling bs-claude-toolkit into: {target}\n")
+    dst = target / "scripts"
+    dst.mkdir(parents=True, exist_ok=True)
 
-    copy_scripts(target)
-    install_skill()
+    for script in ["doc_context.py", "code_research.py"]:
+        shutil.copy2(TOOLKIT_SCRIPTS / script, dst / script)
+        print(f"Copied → {dst / script}")
 
-    print(f"\nDone.")
-    print(f"\nUsage in your project:")
+    print(f"\nDone. Usage in your project:")
     print(f"  python scripts/doc_context.py <keyword>")
     print(f"  python scripts/code_research.py <keyword>")
-    print(f"  /ctx          (in Claude Code)")
+    print(f"  python scripts/doc_context.py --scope <dir> <keyword>")
 
 
 if __name__ == "__main__":

@@ -29,14 +29,24 @@ if sys.stderr.encoding != "utf-8":
 
 
 def _find_root() -> Path:
-    """Tìm project root bằng cách đi lên đến khi gặp .git hoặc CLAUDE.md."""
+    """
+    Tìm project root.
+    Ưu tiên CWD — cho phép script chạy từ bất kỳ đâu (kể cả từ toolkit location)
+    và vẫn tìm đúng root của project đang làm việc.
+    Fallback về vị trí script nếu CWD không có dấu hiệu project.
+    """
+    # Priority 1: walk up from CWD
+    for p in [Path.cwd()] + list(Path.cwd().parents):
+        if (p / ".git").exists() or (p / "CLAUDE.md").exists():
+            return p
+    # Priority 2: walk up from script location (fallback)
     candidate = Path(__file__).resolve().parent
     if candidate.name == "scripts":
         candidate = candidate.parent
     for p in [candidate] + list(candidate.parents):
         if (p / ".git").exists() or (p / "CLAUDE.md").exists():
             return p
-    return candidate
+    return Path.cwd()
 
 
 ROOT = _find_root()
