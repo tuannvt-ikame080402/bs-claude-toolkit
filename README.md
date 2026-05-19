@@ -10,14 +10,14 @@ Hỗ trợ **Claude Code · Cursor · Codex · Windsurf**.
 ### Bước 1 — Clone toolkit (một lần duy nhất)
 
 ```bash
-git clone https://github.com/your-org/bs-claude-toolkit.git ~/.claude/skills/bs-claude-toolkit
+git clone https://github.com/tuannguyen-mk1/bs-claude-toolkit.git ~/.claude/skills/bs-claude-toolkit
 ```
 
 > Claude Code tự nhận `/bs-claude-toolkit` ngay sau khi clone xong — không cần thêm bước nào.
 
 Muốn tên lệnh ngắn hơn:
 ```bash
-git clone https://github.com/your-org/bs-claude-toolkit.git ~/.claude/skills/ctx
+git clone https://github.com/tuannguyen-mk1/bs-claude-toolkit.git ~/.claude/skills/ctx
 # → dùng /ctx
 ```
 
@@ -90,6 +90,22 @@ Rule dùng `alwaysApply: true` — tự apply cho mọi session trong project.
 
 ```bash
 cd ~/.claude/skills/bs-claude-toolkit && git pull
+```
+
+---
+
+## Cài đặt đầy đủ cho máy mới
+
+```bash
+# 1. Clone một lần duy nhất
+git clone https://github.com/tuannguyen-mk1/bs-claude-toolkit.git ~/.claude/skills/bs-claude-toolkit
+
+# 2. Codex global — áp dụng cho mọi project trên máy (tuỳ chọn)
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --tool codex --global
+
+# 3. Với từng project mới — chạy trong thư mục project
+cd /path/to/your-project
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py
 ```
 
 Per-project files (`.cursor/rules/`, `AGENTS.md`, v.v.) cần chạy lại `install.py` để cập nhật.
