@@ -2,5 +2,6 @@
   "_comment": "bs-claude-toolkit project config. Commit this file.",
   "team_mode": "solo",
   "modules": {},
-  "shared_docs": null
+  "shared_docs": null,
+  "stack_profile": {}
 }

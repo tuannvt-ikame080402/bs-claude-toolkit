@@ -9,5 +9,6 @@
   "shared_files": [
     "CLAUDE.md",
     "docs/api-contract.md"
-  ]
+  ],
+  "stack_profile": {}
 }

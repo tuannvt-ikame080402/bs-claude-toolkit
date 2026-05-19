@@ -10,6 +10,8 @@ Options:
     --mode <mode>         solo | split  (mặc định: hỏi interactive)
     --modules <mapping>   Chỉ dùng với --mode split. Ví dụ: be:myapp-be,fe:myapp-fe
     --scope <alias>       Personal default scope (ghi vào .bs-toolkit.local.json)
+    --setup-stack         Setup stack profile cache (tiết kiệm ~90% token mỗi lần chạy skill)
+    --lang <en|vi>        Ngôn ngữ template (mặc định: en)
     --global              Cài Codex global (~/.codex/AGENTS.md)
     target-dir            Thư mục project (mặc định: CWD)
 
@@ -20,11 +22,11 @@ Ví dụ:
     # Split team, tất cả tools
     python install.py --mode split --modules be:myapp-be,fe:myapp-fe
 
+    # Setup stack profile (chạy 1 lần sau khi điền Tech Stack vào CLAUDE.md)
+    python install.py --setup-stack
+
     # Cài personal scope (chạy riêng mỗi người)
     python install.py --scope be
-
-    # Chỉ cài Cursor rule
-    python install.py --tool cursor --mode split --modules be:myapp-be,fe:myapp-fe
 
     # Codex global
     python install.py --tool codex --global
@@ -93,6 +95,7 @@ def generate_project_config(target: Path, *, mode: str, modules: dict[str, str])
             "modules": modules,
             "shared_docs": "docs",
             "shared_files": ["CLAUDE.md", "docs/api-contract.md"],
+            "stack_profile": {},
         }
     else:
         config = {
@@ -100,6 +103,7 @@ def generate_project_config(target: Path, *, mode: str, modules: dict[str, str])
             "team_mode": "solo",
             "modules": {},
             "shared_docs": None,
+            "stack_profile": {},
         }
 
     _write(dst, json.dumps(config, indent=2, ensure_ascii=False) + "\n")
@@ -114,6 +118,10 @@ def generate_project_config(target: Path, *, mode: str, modules: dict[str, str])
         json.dumps(example, indent=2, ensure_ascii=False) + "\n",
     )
     _append_gitignore(target, ".bs-toolkit.local.json")
+
+    print(f"\n  💡 Sau khi điền Tech Stack vào CLAUDE.md, chạy:")
+    print(f"       python install.py --setup-stack")
+    print(f"     để cache stack profile → /bs-claude-toolkit sẽ tiết kiệm ~90% token.")
 
     if mode == "split":
         print(f"\n  QUAN TRỌNG — mỗi dev chạy lệnh sau để set personal scope:")
@@ -217,6 +225,141 @@ def install_claude(target: Path, *, lang: str = "en") -> None:
         print(f"  CLAUDE.md đã tồn tại — bỏ qua.")
 
 
+# ── Stack Profile Cache ───────────────────────────────────────────────────────
+
+_LANGS = [
+    ("1", "Python"), ("2", "TypeScript"), ("3", "JavaScript/Node"),
+    ("4", "Go"), ("5", "Java"), ("6", "Kotlin"), ("7", "PHP"),
+    ("8", "Ruby"), ("9", "Dart"), ("10", "Rust"), ("11", "C#"), ("0", "none / không có"),
+]
+
+_FW_SUGGESTIONS: dict[str, list[str]] = {
+    "Python":            ["Flask", "FastAPI", "Django"],
+    "TypeScript":        ["Next.js", "NestJS", "Remix", "Hono"],
+    "JavaScript/Node":   ["Express", "Fastify", "Koa"],
+    "Go":                ["Gin", "Echo", "Fiber", "Chi"],
+    "Java":              ["Spring Boot", "Quarkus", "Micronaut"],
+    "Kotlin":            ["Spring Boot", "Ktor"],
+    "PHP":               ["Laravel", "Symfony", "Lumen"],
+    "Ruby":              ["Rails", "Sinatra"],
+    "Dart":              ["Flutter"],
+    "Rust":              ["Axum", "Actix-web"],
+    "C#":                ["ASP.NET Core"],
+}
+
+_ARCHS = [
+    ("1", "layered (controller/service/repository)"),
+    ("2", "MVC"),
+    ("3", "hexagonal (ports & adapters)"),
+    ("4", "microservices"),
+    ("5", "CQRS"),
+    ("6", "other"),
+]
+
+_ASYNC_TECHS = [
+    ("1", "none"), ("2", "Celery"), ("3", "BullMQ"), ("4", "Sidekiq"),
+    ("5", "Kafka"), ("6", "RQ"), ("7", "Temporal"), ("8", "other"),
+]
+
+
+def _pick(prompt: str, options: list[tuple[str, str]], default_key: str = "1") -> str:
+    for key, label in options:
+        marker = " ←" if key == default_key else ""
+        print(f"  [{key}] {label}{marker}")
+    raw = input(f"\n{prompt} (mặc định {default_key}): ").strip() or default_key
+    mapping = {k: v for k, v in options}
+    return mapping.get(raw, mapping.get(default_key, ""))
+
+
+def _ask_framework(lang: str, role: str) -> str:
+    suggestions = _FW_SUGGESTIONS.get(lang, [])
+    hint = ", ".join(suggestions) if suggestions else "e.g. Express, Spring Boot, ..."
+    return input(f"  {role} framework [{hint}]: ").strip() or (suggestions[0] if suggestions else "")
+
+
+def setup_stack_profile(target: Path) -> None:
+    """
+    Setup stack profile cache — lưu vào .bs-toolkit.json.
+    Chạy 1 lần, skill sẽ dùng cache này → skip đọc CLAUDE.md → ~90% token savings.
+    """
+    print("\n[stack profile cache]")
+    print("Setup 1 lần. Skill sẽ dùng cache này thay vì đọc CLAUDE.md mỗi lần.\n")
+
+    # Load existing config
+    cfg_path = target / ".bs-toolkit.json"
+    config: dict = {}
+    if cfg_path.exists():
+        try:
+            config = json.loads(cfg_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            pass
+
+    existing = config.get("stack_profile", {})
+    if existing:
+        print("  Stack profile hiện tại:")
+        for k, v in existing.items():
+            if k != "custom_rules":
+                print(f"    {k}: {v}")
+        overwrite = input("\n  Ghi đè? (y/N): ").strip().lower()
+        if overwrite != "y":
+            print("  Giữ nguyên stack profile.")
+            return
+
+    print("\n── Backend ─────────────────────────────────────────")
+    lang_be = _pick("BE language", _LANGS, "1")
+    fw_be = _ask_framework(lang_be, "BE") if lang_be != "none / không có" else ""
+
+    print("\n── Frontend ────────────────────────────────────────")
+    lang_fe = _pick("FE language", _LANGS, "2")
+    fw_fe = _ask_framework(lang_fe, "FE") if lang_fe != "none / không có" else ""
+
+    print("\n── Architecture ────────────────────────────────────")
+    arch_raw = _pick("Architecture pattern", _ARCHS, "1")
+    arch = arch_raw.split(" ")[0]  # lấy phần đầu trước dấu cách
+
+    print("\n── Async / Queue ────────────────────────────────────")
+    async_tech = _pick("Async/Queue tech", _ASYNC_TECHS, "1")
+
+    database = input("\n  Database (e.g. PostgreSQL, MongoDB, MySQL — để trống nếu không rõ): ").strip()
+
+    print("\n── Custom Rules (optional) ──────────────────────────")
+    print("  Nhập các rule đặc thù của project (Enter để bỏ qua từng dòng, dòng trống để kết thúc):")
+    custom_rules: list[str] = []
+    while True:
+        rule = input("  + ").strip()
+        if not rule:
+            break
+        custom_rules.append(rule)
+
+    main_flow = input("\n  Main flow của app (e.g. 'Login → Dashboard → Orders'): ").strip()
+    api_format = input("  API response format (mặc định: { success, data, error, meta }): ").strip() \
+                 or "{ success, data, error, meta }"
+
+    profile: dict = {
+        "lang_be": lang_be if lang_be != "none / không có" else "",
+        "framework_be": fw_be,
+        "lang_fe": lang_fe if lang_fe != "none / không có" else "",
+        "framework_fe": fw_fe,
+        "arch": arch,
+        "async_tech": async_tech,
+        "database": database,
+        "main_flow": main_flow,
+        "api_format": api_format,
+    }
+    if custom_rules:
+        profile["custom_rules"] = custom_rules
+
+    # Strip empty strings
+    profile = {k: v for k, v in profile.items() if v or k == "custom_rules"}
+
+    config["stack_profile"] = profile
+    _write(cfg_path, json.dumps(config, indent=2, ensure_ascii=False) + "\n")
+
+    print("\n  ✓  Stack profile saved → .bs-toolkit.json")
+    print("  Từ nay /bs-claude-toolkit sẽ dùng cache này — không đọc lại CLAUDE.md.")
+    print("  Để refresh: python install.py --setup-stack (chọn 'y' khi hỏi ghi đè).\n")
+
+
 # ── Interactive setup ─────────────────────────────────────────────────────────
 
 def _ask_mode() -> str:
@@ -238,13 +381,15 @@ def _ask_modules() -> dict[str, str]:
 
 def _parse_args():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--tool",    default="all",  choices=SUPPORTED_TOOLS)
-    p.add_argument("--mode",    default=None,   choices=["solo", "split"])
-    p.add_argument("--modules", default=None,   help="be:myapp-be,fe:myapp-fe")
-    p.add_argument("--scope",   default=None,   help="Personal default scope")
-    p.add_argument("--lang",    default="en",   choices=["en", "vi"], help="Template language (default: en)")
-    p.add_argument("--global",  dest="global_install", action="store_true")
-    p.add_argument("target",    nargs="?",      default=None)
+    p.add_argument("--tool",        default="all",  choices=SUPPORTED_TOOLS)
+    p.add_argument("--mode",        default=None,   choices=["solo", "split"])
+    p.add_argument("--modules",     default=None,   help="be:myapp-be,fe:myapp-fe")
+    p.add_argument("--scope",       default=None,   help="Personal default scope")
+    p.add_argument("--setup-stack", dest="setup_stack", action="store_true",
+                                    help="Setup stack profile cache (tiết kiệm ~90% token)")
+    p.add_argument("--lang",        default="en",   choices=["en", "vi"], help="Template language (default: en)")
+    p.add_argument("--global",      dest="global_install", action="store_true")
+    p.add_argument("target",        nargs="?",      default=None)
     return p.parse_args()
 
 
@@ -257,6 +402,12 @@ def main() -> None:
         sys.exit(1)
 
     print(f"\nInstalling bs-claude-toolkit → {target}")
+
+    # Stack profile cache setup (standalone)
+    if args.setup_stack:
+        setup_stack_profile(target)
+        print("Done.\n")
+        return
 
     # Personal scope only
     if args.scope:
