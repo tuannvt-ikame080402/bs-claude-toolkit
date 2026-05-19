@@ -1,5 +1,5 @@
 ---
-description: "Ba mode: plan (research + tao sprint doc), review (doc git diff + apply checklist), brief (orientation). Load project context, detect stack, tinh sprint tiep theo."
+description: "Ba mode: plan (research + tạo sprint doc), review (đọc git diff + apply checklist), brief (orientation). Load project context, detect stack, tính sprint tiếp theo."
 arguments: "plan [scope] task | review [scope] | [scope] [task]"
 ---
 

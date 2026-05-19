@@ -141,6 +141,13 @@ Example: "fix video retry not triggering" → `video`, `retry`, `trigger`
 
 ---
 
+## LANGUAGE RULE
+
+**All generated `.md` files must be written in Vietnamese with full diacritical marks (tiếng Việt có dấu, UTF-8)** — plan, changelog, test doc, testlog.
+Code identifiers, file paths, and technical terms (API names, library names, error messages) remain in English.
+
+---
+
 ## PHASE 5 — Execute by Mode
 
 ---
@@ -192,51 +199,53 @@ Internalize: relevant past decisions from plan history, existing code patterns a
 
 Write to: `[submodule]/docs/plan/sprint-[N]-[slug].md`
 
-```markdown
-# Sprint [N] — [Task Title]
+Write the entire file in Vietnamese with full diacritical marks (tiếng Việt có dấu). Technical terms (API names, library names, error messages, code identifiers) stay in English.
 
-**Date:** [YYYYMMDD]
-**Type:** [new-feature | bug-fix | refactor]
-**Scope:** [submodule / key files]
+```markdown
+# Sprint [N] — [Tên task]
+
+**Ngày:** [YYYYMMDD]
+**Loại:** [new-feature | bug-fix | refactor]
+**Phạm vi:** [submodule / các file chính]
 
 ## Context
 
-[1–3 sentences from research — relevant past sprints, existing patterns, related decisions]
+[1–3 câu từ research — sprint liên quan, pattern hiện tại, quyết định đã có]
 
-## Problem / Goal
+## Vấn đề / Mục tiêu
 
-[What needs to change and why. For bug-fix: what breaks and when. For feature: what is missing.]
+[Cần thay đổi gì và tại sao. Bug-fix: cái gì bị lỗi và khi nào. Feature: đang thiếu gì.]
 
-## Analysis
+## Phân tích
 
-[For bug-fix: root cause with file:line references.
- For feature: current gap, chosen approach, trade-offs.]
+[Bug-fix: root cause kèm file:line tham chiếu.
+ Feature: gap hiện tại, approach được chọn, trade-off.]
 
-## Implementation Plan
+## Kế hoạch Implement
 
-### Files to modify
+### Các file cần sửa
 
-| File | Change |
-|------|--------|
-| `path/to/file.py` | what changes and why |
+| File | Thay đổi |
+|------|----------|
+| `path/to/file.py` | thay đổi gì và tại sao |
 
-### Steps
+### Các bước
 
-1. [Concrete step]
-2. [Concrete step]
+1. [Bước cụ thể]
+2. [Bước cụ thể]
 
 ## Code Review Checklist
 
-[Paste the relevant checklist items for this task's stack + type]
+[Dán các checklist item phù hợp với stack + loại task này]
 
 ## Definition of Done
 
-- [ ] Code runs locally
-- [ ] Tests pass: happy + edge + failure cases
-- [ ] Changelog created
-- [ ] Test doc + test log created
-- [ ] Core flow not broken
-- [ ] No language rule violations · No hardcoded secrets
+- [ ] Code chạy được local
+- [ ] Tests pass: happy + edge + failure case
+- [ ] Changelog tạo xong
+- [ ] Test doc + test log tạo xong
+- [ ] Flow chính không bị phá
+- [ ] Không vi phạm language rules · Không hardcode secrets
 ```
 
 **Step 3 — Output**

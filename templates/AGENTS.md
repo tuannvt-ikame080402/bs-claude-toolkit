@@ -127,6 +127,11 @@ After every implementation or fix, verify:
 
 **HHMM** = current local time when creating the file (24h). Time in filename enables natural ordering and prevents merge conflicts.
 
+## Language Rule
+
+**All generated `.md` files must be written in Vietnamese with full diacritical marks (tiếng Việt có dấu, UTF-8)** — plan, changelog, test doc, testlog.
+Code identifiers, file paths, API names, library names, and error messages remain in English.
+
 ## Conventions
 
 - Docs in Vietnamese (UTF-8), code in English

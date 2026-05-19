@@ -180,6 +180,11 @@ Sau mỗi lần implement hoặc fix, tự kiểm tra:
 
 ---
 
+## Language Rule
+
+**Toàn bộ file `.md` do AI tạo ra phải viết bằng tiếng Việt có dấu (UTF-8)** — plan, changelog, test doc, testlog.
+Code identifier, đường dẫn file, tên API/thư viện, error message giữ nguyên tiếng Anh.
+
 ## Nguyên tắc bắt buộc
 
 1. **Tài liệu bằng tiếng Việt có dấu, UTF-8** — code dùng tiếng Anh
