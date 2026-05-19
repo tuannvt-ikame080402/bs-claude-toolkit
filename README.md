@@ -86,6 +86,61 @@ Rule dùng `alwaysApply: true` — tự apply cho mọi session trong project.
 
 ---
 
+## Solo vs Split Team
+
+### Solo — 1 người code cả BE + FE
+
+```bash
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --mode solo
+```
+
+`/bs-claude-toolkit` load toàn bộ context, sprint numbers tính chung.
+
+---
+
+### Split — 2 người code riêng
+
+```bash
+# Project lead chạy một lần, commit .bs-toolkit.json
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py \
+  --mode split --modules be:myapp-be,fe:myapp-fe
+```
+
+**Mỗi developer** chạy riêng để set personal scope (không commit):
+
+```bash
+# Dev BE
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --scope be
+
+# Dev FE
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --scope fe
+```
+
+Từ đó `/bs-claude-toolkit` tự động load đúng scope mà không cần gõ thêm.
+
+#### Conflict prevention trong split mode
+
+| Zone | Files | Rule |
+|------|-------|------|
+| ✏️ **Your zone** | `{module}/` code + `{module}/docs/` | Tự do edit |
+| 🤝 **Shared zone** | `CLAUDE.md`, `docs/api-contract.md` | Cần sync với team trước |
+
+- Sprint numbers **độc lập per-submodule** — BE sprint-15, FE sprint-12 là bình thường
+- Changelog/test files trong `{module}/docs/` riêng — không conflict
+- API contract thay đổi → cần cả 2 bên đồng thuận
+
+#### Khi không có `default_scope`
+
+Skill sẽ nhắc:
+```
+⚠️  Split team mode detected. Bạn đang làm việc ở module nào?
+    /bs-claude-toolkit be
+    /bs-claude-toolkit fe
+    /bs-claude-toolkit all   ← fullstack session
+```
+
+---
+
 ## Cập nhật toolkit
 
 ```bash

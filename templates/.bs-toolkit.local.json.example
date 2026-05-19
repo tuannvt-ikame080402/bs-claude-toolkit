@@ -1,0 +1,4 @@
+{
+  "_comment": "Personal scope config — copy to .bs-toolkit.local.json, DO NOT commit (gitignored).",
+  "default_scope": "be"
+}
