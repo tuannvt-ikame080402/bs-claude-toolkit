@@ -154,6 +154,25 @@ python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --lang vi   # templ
 
 ---
 
+## Cập nhật skill
+
+Khi có bản update mới, pull về:
+
+```bash
+git -C ~/.claude/skills/bs-claude-toolkit pull --ff-only
+```
+
+Sau đó chạy lại installer trong project để đồng bộ adapter rules hoặc templates đã thay đổi:
+
+```bash
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --tool cursor
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --tool windsurf
+```
+
+> `.bs-toolkit.json` và `CLAUDE.md` của bạn không bị ghi đè — chỉ các adapter rules trong `.cursor/rules/` và `.windsurf/rules/` được cập nhật.
+
+---
+
 ## Yêu cầu
 
 - Python 3.8+ (stdlib only)

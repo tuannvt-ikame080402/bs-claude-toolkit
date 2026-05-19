@@ -154,6 +154,25 @@ python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --lang vi   # Vietn
 
 ---
 
+## Updating the skill
+
+When a new version is released, pull the latest changes:
+
+```bash
+git -C ~/.claude/skills/bs-claude-toolkit pull --ff-only
+```
+
+Then re-run the installer in your project to sync any updated adapter rules or templates:
+
+```bash
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --tool cursor
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --tool windsurf
+```
+
+> Your `.bs-toolkit.json` and `CLAUDE.md` are not overwritten — only the adapter rules in `.cursor/rules/` and `.windsurf/rules/` are updated.
+
+---
+
 ## Requirements
 
 - Python 3.8+ (stdlib only)
