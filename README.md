@@ -1,9 +1,37 @@
 # bs-claude-toolkit
 
-Standardized AI coding workflow skill for Claude Code.
-Auto-loads project context, detects stack, enforces workflow, generates review checklists.
+A Claude Code skill that enforces a consistent, structured coding workflow across any project.
 
 > 🇻🇳 [Đọc bằng tiếng Việt](README.vi.md)
+
+---
+
+## What it does
+
+When you type `/bs-claude-toolkit` in Claude Code, the skill runs automatically before any task:
+
+1. **Loads your project context** — reads `CLAUDE.md` and submodule configs. On repeat runs, uses a cached stack profile instead (~90% fewer tokens).
+
+2. **Detects your tech stack** — language, framework, architecture pattern, async tech — from the cached profile or by parsing `CLAUDE.md`.
+
+3. **Computes the next sprint number** — scans `*/docs/plan/` to find the latest sprint and suggests the correct next number.
+
+4. **Classifies your task** — detects whether it's a new feature, bug fix, refactor, or architecture question.
+
+5. **Outputs an action brief** — a structured plan showing: execution mode, stack, next sprint, research commands to run, the exact workflow to follow (plan → implement → review → changelog → test), and a stack-specific code review checklist.
+
+The skill enforces this workflow for every task, across any language or architecture:
+
+```
+Research → Plan → Implement → Self-Review → Changelog → Test doc
+```
+
+**Code review checklist** adapts to your stack automatically:
+- Language rules: Python, TypeScript, Go, Java/Kotlin, Node, PHP, Ruby
+- Architecture rules: layered, MVC, hexagonal, microservices, CQRS
+- Async rules: retry, idempotency, dead-letter, status transitions
+
+**Solo and split-team modes** — two developers can work on BE and FE independently without stepping on each other's sprint numbers or shared files.
 
 ---
 

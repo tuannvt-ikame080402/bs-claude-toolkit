@@ -1,9 +1,37 @@
 # bs-claude-toolkit
 
-Skill workflow AI coding chuẩn hóa cho Claude Code.
-Tự động load context, detect stack, enforce workflow, sinh review checklist.
+Skill Claude Code giúp áp dụng quy trình coding có cấu trúc, nhất quán cho mọi project.
 
 > 🇬🇧 [Read in English](README.md)
+
+---
+
+## Skill này làm gì?
+
+Khi bạn gõ `/bs-claude-toolkit` trong Claude Code, skill tự động chạy trước mọi task:
+
+1. **Load context project** — đọc `CLAUDE.md` và config submodule. Ở các lần sau, dùng stack profile đã cache → tiết kiệm ~90% token.
+
+2. **Detect tech stack** — ngôn ngữ, framework, kiến trúc, async tech — từ cache hoặc parse `CLAUDE.md`.
+
+3. **Tính số sprint tiếp theo** — scan `*/docs/plan/` để tìm sprint mới nhất và đề xuất số đúng.
+
+4. **Phân loại task** — detect task là feature mới, bug fix, refactor hay câu hỏi kiến trúc.
+
+5. **Output action brief** — bản tóm tắt có cấu trúc gồm: execution mode, stack, sprint tiếp theo, lệnh research cần chạy, workflow cần theo (plan → implement → review → changelog → test), và review checklist phù hợp với stack.
+
+Skill enforce quy trình này cho mọi task, với mọi ngôn ngữ và kiến trúc:
+
+```
+Research → Plan → Implement → Self-Review → Changelog → Test doc
+```
+
+**Review checklist tự động thích nghi theo stack:**
+- Language rules: Python, TypeScript, Go, Java/Kotlin, Node, PHP, Ruby
+- Architecture rules: layered, MVC, hexagonal, microservices, CQRS
+- Async rules: retry, idempotency, dead-letter, status transitions
+
+**Solo và split-team mode** — hai developer có thể làm việc độc lập trên BE và FE mà không conflict số sprint hay shared files.
 
 ---
 
