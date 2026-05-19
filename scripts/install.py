@@ -76,10 +76,10 @@ def generate_project_config(target: Path) -> None:
 
 def install_scripts(target: Path) -> None:
     print("\n[scripts]")
-    for script in ["doc_context.py", "code_research.py"]:
+    for script in ["doc_context.py", "code_research.py", "reorder_docs.py"]:
         _copy(SCRIPTS_DIR / script, target / "scripts" / script)
     print(f"  Usage: python scripts/doc_context.py <keyword>")
-    print(f"         python scripts/doc_context.py --scope be <keyword>")
+    print(f"         python scripts/reorder_docs.py --dry-run")
 
 
 def _lang_suffix(lang: str) -> str:

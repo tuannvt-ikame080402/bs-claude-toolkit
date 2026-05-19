@@ -99,12 +99,14 @@ Các script tiện ích để research và setup. Có thể chạy trực tiếp
 |--------|-----------|
 | `doc_context.py` | Tìm kiếm trong sprint plan, changelog, test doc đã có theo keyword. Dùng trước mọi task để hiểu context lịch sử. Hỗ trợ `--scope be/fe`. |
 | `code_research.py` | Tìm kiếm trong code hiện tại theo keyword, nhóm theo layer (controller, service, repository, v.v.). Hỗ trợ `--scope`. |
-| `install.py` | Tool setup đầy đủ. Cài rules cho từng AI tool, tạo config files, setup cấu trúc docs submodule, và chạy wizard setup stack profile (`--setup-stack`). |
+| `reorder_docs.py` | Sắp xếp lại thứ tự số của doc files theo thời gian tạo sau khi merge conflict. Khi 2 developer tạo file cùng số thứ tự, script đặt lại số dựa trên thứ tự commit — file được commit trước giữ số nhỏ hơn. |
+| `install.py` | Tool setup đầy đủ. Cài rules cho từng AI tool, tạo config files, và chạy wizard setup stack profile (`--setup-stack`). |
 
 ```bash
 # Ví dụ
 python ~/.claude/skills/bs-claude-toolkit/scripts/doc_context.py pagination
 python ~/.claude/skills/bs-claude-toolkit/scripts/code_research.py --scope be retry
+python ~/.claude/skills/bs-claude-toolkit/scripts/reorder_docs.py --dry-run
 python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --setup-stack
 ```
 

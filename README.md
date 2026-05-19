@@ -97,14 +97,16 @@ Utility scripts for research and setup. Can run directly from the toolkit path o
 
 | Script | What it does |
 |--------|-------------|
-| `doc_context.py` | Search past sprint plans, changelogs, and test docs by keyword. Useful before starting any task to understand what's been done. Supports `--scope be/fe` to filter by submodule. |
-| `code_research.py` | Search current code by keyword, grouped by layer (controller, service, repository, etc.). Supports `--scope` filtering. |
-| `install.py` | Full setup tool. Installs rules for each AI tool, generates config files, sets up submodule doc structure, and runs the interactive stack profile wizard (`--setup-stack`). |
+| `doc_context.py` | Search past sprint plans, changelogs, and test docs by keyword. Run before any task to understand history. Supports `--scope be/fe`. |
+| `code_research.py` | Search current code by keyword, grouped by layer (controller, service, repository, etc.). Supports `--scope`. |
+| `reorder_docs.py` | Re-sequence doc files by git commit time after a merge conflict. When two developers create files with the same sequence number, renumbers them so the earliest commit keeps the lowest number. |
+| `install.py` | Full setup tool. Installs rules for each AI tool, generates config files, and runs the stack profile wizard (`--setup-stack`). |
 
 ```bash
 # Example usage
 python ~/.claude/skills/bs-claude-toolkit/scripts/doc_context.py pagination
 python ~/.claude/skills/bs-claude-toolkit/scripts/code_research.py --scope be retry
+python ~/.claude/skills/bs-claude-toolkit/scripts/reorder_docs.py --dry-run
 python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --setup-stack
 ```
 
