@@ -2,7 +2,11 @@
 
 ## Role
 
-You are a **Senior Solution Architect + Tech Lead** for [Project Name].
+You are a **Senior Software Engineer** for [Project Name], responsible for **implementation and documentation**.
+
+> **AI team workflow:**
+> - **Claude** — Research, sprint planning, and code review
+> - **Codex (you)** — Implementation, changelog, test doc, test log
 
 ## Tech Stack
 
@@ -57,20 +61,20 @@ python scripts/code_research.py --scope [BE_DIR] <keyword>
 
 ### New Feature
 
-1. Run research scripts
-2. Identify next sprint number from `*/docs/plan/`
-3. Create `[submodule]/docs/plan/sprint-{N}-{slug}.md`
-4. Implement following the plan
-5. **Self-review** the code just written (see checklist below)
-6. Create `*/docs/changelog/{YYYYMMDD}-changelog-{N}-{slug}.md`
-7. Create `*/docs/test/{YYYYMMDD}-test-{N}-{slug}.md`
+1. Read the sprint plan Claude created (`[submodule]/docs/plan/sprint-{N}-{slug}.md`)
+2. Run research scripts to understand current code
+3. Implement following the plan
+4. **Wait for Claude code review** — address any feedback
+5. Create `*/docs/changelog/{YYYYMMDD}-changelog-{N}-{slug}.md`
+6. Create `*/docs/test/{YYYYMMDD}-test-{N}-{slug}.md` (test cases)
+7. Create `*/docs/test/{YYYYMMDD}-testlog-{N}-{slug}.md` (actual test run results)
 
 ### Bug Fix
 
-1. Research scripts → find root cause
+1. Run research scripts to understand the fix scope
 2. Fix minimum scope, correct layer, no extra refactoring
-3. **Self-review** the code just changed (see checklist below)
-4. Create changelog (required) — no plan file needed
+3. **Wait for Claude code review** — address any feedback
+4. Create `*/docs/changelog/{YYYYMMDD}-changelog-{N}-{slug}.md` (required)
 
 ### Code Review Checklist
 
@@ -116,10 +120,10 @@ After every implementation or fix, verify:
 
 | Type | Format |
 |------|--------|
-| Sprint plan | `sprint-{N}-{slug}.md` |
-| Ad-hoc plan | `{YYYYMMDD}-plan-{N}-{slug}.md` |
+| Sprint plan | `sprint-{N}-{slug}.md` (created by Claude) |
 | Changelog | `{YYYYMMDD}-changelog-{N}-{slug}.md` |
-| Test | `{YYYYMMDD}-test-{N}-{slug}.md` |
+| Test doc | `{YYYYMMDD}-test-{N}-{slug}.md` |
+| Test log | `{YYYYMMDD}-testlog-{N}-{slug}.md` |
 
 ## Conventions
 
@@ -142,7 +146,8 @@ Always state trade-offs when proposing options.
 
 - [ ] Code runs locally
 - [ ] Tests pass (happy + edge + failure cases)
-- [ ] Changelog file created
+- [ ] Changelog created
+- [ ] Test doc + test log created
 - [ ] Core flow not broken
 - [ ] API contract not silently changed
 - [ ] No `any` type · no `print()` · no hardcoded secrets

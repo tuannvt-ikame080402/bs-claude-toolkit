@@ -103,28 +103,29 @@ Hoặc dùng skill: `/bs-claude-toolkit` · `/bs-claude-toolkit be` · `/bs-clau
 ## AI Coding Workflow
 
 ```
-PLAN  ──►  IMPLEMENTATION  ──►  REVIEW  ──►  CHANGELOG  ──►  TEST
+[Claude] PLAN  ──►  [Codex] IMPLEMENT  ──►  [Claude] REVIEW  ──►  [Codex] CHANGELOG + TEST
 ```
 
 ### Luồng 1 — Implement feature mới
 
-| Bước | Hành động |
-|------|-----------|
-| 0 | Scripts → xác định sprint N tiếp theo (đọc `*/docs/plan/`) |
-| 1 | Tạo `[BE_DIR]/docs/plan/sprint-{N}-{slug}.md` và/hoặc `[FE_DIR]/docs/plan/sprint-{N}-{slug}.md` |
-| 2 | Code theo plan — scope thay đổi → cập nhật plan TRƯỚC |
-| 3 | **Self-review** code vừa viết (xem checklist bên dưới) |
-| 4 | Tạo `*/docs/changelog/{YYYYMMDD}-changelog-{N}-{slug}.md` |
-| 5 | Tạo `*/docs/test/{YYYYMMDD}-test-{N}-{slug}.md` |
+| Bước | AI | Hành động |
+|------|-----|-----------|
+| 0 | Claude | Scripts → xác định sprint N tiếp theo (đọc `*/docs/plan/`) |
+| 1 | Claude | Tạo `[subdir]/docs/plan/sprint-{N}-{slug}.md` |
+| 2 | Codex | Implement theo plan |
+| 3 | Claude | **Code review** (xem checklist bên dưới) |
+| 4 | Codex | Tạo `*/docs/changelog/{YYYYMMDD}-changelog-{N}-{slug}.md` |
+| 5 | Codex | Tạo `*/docs/test/{YYYYMMDD}-test-{N}-{slug}.md` (test cases) |
+| 6 | Codex | Tạo `*/docs/test/{YYYYMMDD}-testlog-{N}-{slug}.md` (kết quả test thực tế) |
 
 ### Luồng 2 — Fix bug
 
-| Bước | Hành động |
-|------|-----------|
-| 0 | Scripts → tìm root cause |
-| 1 | Fix tối thiểu, đúng layer, không refactor thêm |
-| 2 | **Self-review** code vừa sửa (xem checklist bên dưới) |
-| 3 | Tạo `*/docs/changelog/{YYYYMMDD}-changelog-{N}-{slug}.md` (bắt buộc) |
+| Bước | AI | Hành động |
+|------|-----|-----------|
+| 0 | Claude | Scripts → trace root cause, mô tả phạm vi fix |
+| 1 | Codex | Fix tối thiểu, đúng layer, không refactor thêm |
+| 2 | Claude | **Code review** (xem checklist bên dưới) |
+| 3 | Codex | Tạo `*/docs/changelog/{YYYYMMDD}-changelog-{N}-{slug}.md` (bắt buộc) |
 
 ### Code Review Checklist
 
@@ -171,9 +172,9 @@ Sau mỗi lần implement hoặc fix, tự kiểm tra:
 | Loại | Format | Ví dụ |
 |------|--------|-------|
 | Sprint plan | `sprint-{N}-{slug}.md` | `sprint-12-user-auth.md` |
-| Ad-hoc plan | `{YYYYMMDD}-plan-{N}-{slug}.md` | `20260601-plan-1-hotfix.md` |
 | Changelog | `{YYYYMMDD}-changelog-{N}-{slug}.md` | `20260601-changelog-1-auth-fix.md` |
-| Test | `{YYYYMMDD}-test-{N}-{slug}.md` | `20260601-test-1-auth.md` |
+| Test doc | `{YYYYMMDD}-test-{N}-{slug}.md` | `20260601-test-1-auth.md` |
+| Test log | `{YYYYMMDD}-testlog-{N}-{slug}.md` | `20260601-testlog-1-auth.md` |
 
 **N** = số thứ tự trong ngày theo loại. Đọc thư mục trước để lấy N đúng.
 
@@ -214,7 +215,8 @@ Sau mỗi lần implement hoặc fix, tự kiểm tra:
 
 - [ ] Code chạy được local
 - [ ] Test pass (happy + edge + failure case)
-- [ ] `docs/changelog/` có file changelog
+- [ ] `docs/changelog/` có file changelog (Codex)
+- [ ] `docs/test/` có test doc + test log (Codex)
 - [ ] Không phá flow chính
 - [ ] API contract không thay đổi ngầm
 - [ ] Không `any` type (FE) · không `print()` (BE) · không hardcode secrets

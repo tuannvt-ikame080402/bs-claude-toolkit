@@ -168,18 +168,34 @@ Example: "fix video retry not triggering" → `video`, `retry`, `trigger`
 ──────────────────────────────────────────────────────────────
 
   new-feature:
+    [Claude — Planning]
     1. Research (doc + code)
     2. Create [submodule]/docs/plan/sprint-[N]-[slug].md
+
+    [Codex — Implementation]
     3. Implement following the plan
-    4. Self-review (see CODE REVIEW below)
+
+    [Claude — Review]
+    4. Code review (see CODE REVIEW below)
+
+    [Codex — Documentation]
     5. Create [submodule]/docs/changelog/[DATE]-changelog-[seq]-[slug].md
     6. Create [submodule]/docs/test/[DATE]-test-[seq]-[slug].md
+    7. Create [submodule]/docs/test/[DATE]-testlog-[seq]-[slug].md
 
   bug-fix:
+    [Claude — Planning]
     1. Research → trace root cause
-    2. Fix minimum scope, correct layer
-    3. Self-review (see CODE REVIEW below)
-    4. Create [submodule]/docs/changelog/[DATE]-changelog-[seq]-[slug].md
+    2. Describe fix scope and approach in brief
+
+    [Codex — Implementation]
+    3. Fix minimum scope, correct layer
+
+    [Claude — Review]
+    4. Code review (see CODE REVIEW below)
+
+    [Codex — Documentation]
+    5. Create [submodule]/docs/changelog/[DATE]-changelog-[seq]-[slug].md
 
   question / architecture:
     1. Research → analyze → answer  (no files needed)
@@ -222,7 +238,8 @@ Example: "fix video retry not triggering" → `video`, `retry`, `trigger`
 
   Plan:      [submodule]/docs/plan/sprint-[N]-[slug].md
   Changelog: [submodule]/docs/changelog/[DATE]-changelog-[seq]-[slug].md
-  Test:      [submodule]/docs/test/[DATE]-test-[seq]-[slug].md
+  Test doc:  [submodule]/docs/test/[DATE]-test-[seq]-[slug].md
+  Test log:  [submodule]/docs/test/[DATE]-testlog-[seq]-[slug].md
 
   [seq] = count existing files with the same date in the folder, +1
 
@@ -232,7 +249,8 @@ Example: "fix video retry not triggering" → `video`, `retry`, `trigger`
 
   [ ] Code runs locally
   [ ] Tests pass: happy + edge + failure cases
-  [ ] Changelog created
+  [ ] Changelog created (by Codex)
+  [ ] Test doc + test log created (by Codex)
   [ ] Core flow not broken
   [ ] API contract not silently changed
   [ ] No language rule violations · No hardcoded secrets

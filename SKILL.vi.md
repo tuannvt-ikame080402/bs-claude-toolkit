@@ -168,18 +168,34 @@ Ví dụ: "fix video retry không trigger" → `video`, `retry`, `trigger`
 ──────────────────────────────────────────────────────────────
 
   new-feature:
+    [Claude — Planning]
     1. Research (doc + code)
     2. Tạo [submodule]/docs/plan/sprint-[N]-[slug].md
+
+    [Codex — Implementation]
     3. Implement theo plan
-    4. Self-review (xem CODE REVIEW bên dưới)
+
+    [Claude — Review]
+    4. Code review (xem CODE REVIEW bên dưới)
+
+    [Codex — Documentation]
     5. Tạo [submodule]/docs/changelog/[DATE]-changelog-[seq]-[slug].md
     6. Tạo [submodule]/docs/test/[DATE]-test-[seq]-[slug].md
+    7. Tạo [submodule]/docs/test/[DATE]-testlog-[seq]-[slug].md
 
   bug-fix:
+    [Claude — Planning]
     1. Research → trace root cause
-    2. Fix minimum scope, đúng layer
-    3. Self-review (xem CODE REVIEW bên dưới)
-    4. Tạo [submodule]/docs/changelog/[DATE]-changelog-[seq]-[slug].md
+    2. Mô tả phạm vi và cách fix
+
+    [Codex — Implementation]
+    3. Fix minimum scope, đúng layer
+
+    [Claude — Review]
+    4. Code review (xem CODE REVIEW bên dưới)
+
+    [Codex — Documentation]
+    5. Tạo [submodule]/docs/changelog/[DATE]-changelog-[seq]-[slug].md
 
   question / architecture:
     1. Research → phân tích → trả lời  (không cần tạo file)
@@ -222,7 +238,8 @@ Ví dụ: "fix video retry không trigger" → `video`, `retry`, `trigger`
 
   Plan:      [submodule]/docs/plan/sprint-[N]-[slug].md
   Changelog: [submodule]/docs/changelog/[DATE]-changelog-[seq]-[slug].md
-  Test:      [submodule]/docs/test/[DATE]-test-[seq]-[slug].md
+  Test doc:  [submodule]/docs/test/[DATE]-test-[seq]-[slug].md
+  Test log:  [submodule]/docs/test/[DATE]-testlog-[seq]-[slug].md
 
   [seq] = đọc thư mục trước, đếm file cùng ngày, +1
 
@@ -232,7 +249,8 @@ Ví dụ: "fix video retry không trigger" → `video`, `retry`, `trigger`
 
   [ ] Code chạy được local
   [ ] Test pass: happy + edge + failure case
-  [ ] Changelog tạo xong
+  [ ] Changelog tạo xong (Codex)
+  [ ] Test doc + test log tạo xong (Codex)
   [ ] Flow chính không bị phá
   [ ] API contract không thay đổi ngầm
   [ ] Không vi phạm language rules · Không hardcode secrets

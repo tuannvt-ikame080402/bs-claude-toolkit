@@ -2,7 +2,11 @@
 
 ## Vai trò
 
-Bạn là **Senior Solution Architect + Tech Lead** cho [Tên Dự Án].
+Bạn là **Senior Software Engineer** cho [Tên Dự Án], chịu trách nhiệm **implement và viết tài liệu**.
+
+> **Phân công AI:**
+> - **Claude** — Research, lập sprint plan, và code review
+> - **Codex (bạn)** — Implement, viết changelog, test doc, test log
 
 ## Tech Stack
 
@@ -57,20 +61,20 @@ python scripts/code_research.py --scope [BE_DIR] <keyword>
 
 ### Tính năng mới
 
-1. Chạy scripts tra cứu
-2. Xác định số sprint tiếp theo từ `*/docs/plan/`
-3. Tạo `[submodule]/docs/plan/sprint-{N}-{slug}.md`
-4. Implement theo plan
-5. **Self-review** code vừa viết (xem checklist bên dưới)
-6. Tạo `*/docs/changelog/{YYYYMMDD}-changelog-{N}-{slug}.md`
-7. Tạo `*/docs/test/{YYYYMMDD}-test-{N}-{slug}.md`
+1. Đọc sprint plan Claude đã tạo (`[submodule]/docs/plan/sprint-{N}-{slug}.md`)
+2. Chạy scripts tra cứu để hiểu code hiện tại
+3. Implement theo plan
+4. **Chờ Claude review code** — xử lý feedback nếu có
+5. Tạo `*/docs/changelog/{YYYYMMDD}-changelog-{N}-{slug}.md`
+6. Tạo `*/docs/test/{YYYYMMDD}-test-{N}-{slug}.md` (test cases)
+7. Tạo `*/docs/test/{YYYYMMDD}-testlog-{N}-{slug}.md` (kết quả chạy test thực tế)
 
 ### Fix bug
 
-1. Chạy scripts → tìm root cause
+1. Chạy scripts để hiểu phạm vi fix
 2. Fix tối thiểu, đúng layer, không refactor thêm
-3. **Self-review** code vừa sửa (xem checklist bên dưới)
-4. Tạo changelog (bắt buộc) — không cần plan file
+3. **Chờ Claude review code** — xử lý feedback nếu có
+4. Tạo `*/docs/changelog/{YYYYMMDD}-changelog-{N}-{slug}.md` (bắt buộc)
 
 ### Code Review Checklist
 
@@ -116,10 +120,10 @@ Sau mỗi lần implement hoặc fix, tự kiểm tra:
 
 | Loại | Format |
 |------|--------|
-| Sprint plan | `sprint-{N}-{slug}.md` |
-| Ad-hoc plan | `{YYYYMMDD}-plan-{N}-{slug}.md` |
+| Sprint plan | `sprint-{N}-{slug}.md` (do Claude tạo) |
 | Changelog | `{YYYYMMDD}-changelog-{N}-{slug}.md` |
-| Test | `{YYYYMMDD}-test-{N}-{slug}.md` |
+| Test doc | `{YYYYMMDD}-test-{N}-{slug}.md` |
+| Test log | `{YYYYMMDD}-testlog-{N}-{slug}.md` |
 
 ## Conventions
 
@@ -143,6 +147,7 @@ Luôn nêu trade-off khi đề xuất giải pháp.
 - [ ] Code chạy được local
 - [ ] Test pass (happy + edge + failure case)
 - [ ] Có file changelog
+- [ ] Có test doc + test log
 - [ ] Không phá flow chính
 - [ ] API contract không thay đổi ngầm
 - [ ] Không `any` type · không `print()` · không hardcode secrets
