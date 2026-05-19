@@ -1,0 +1,57 @@
+---
+description: Load project context and enforce AI coding workflow (bs-claude-toolkit)
+alwaysApply: true
+---
+
+## Context Loading
+
+Before starting any task, read these files in order:
+1. `CLAUDE.md` at project root (always)
+2. Any `CLAUDE.md` or `Agents.md` inside immediate subdirectories that contain a `docs/` folder or their own `CLAUDE.md` (submodule detection — works with any naming: `backend/`, `myapp-be/`, `api/`, `web/`, etc.)
+
+## Research Before Implementing
+
+Always run these scripts before fixing bugs or implementing features:
+
+```bash
+# Search past plans, changelogs, tests
+python scripts/doc_context.py <keyword>
+python scripts/doc_context.py --scope <submodule-name> <keyword>
+
+# Search current code
+python scripts/code_research.py <keyword>
+python scripts/code_research.py --scope <submodule-name> <keyword>
+```
+
+If `scripts/doc_context.py` doesn't exist locally, run from toolkit:
+```bash
+python ~/.claude/skills/bs-claude-toolkit/scripts/doc_context.py <keyword>
+```
+
+## Execution Mode
+
+| Mode | When | Allowed |
+|------|------|---------|
+| **Planning** (default) | No explicit code request | Analysis, write `.md` docs, propose architecture |
+| **Execution** | Explicitly requested | Write code, fix bugs, refactor, write tests |
+
+No explicit request → **always stay in Planning mode.**
+
+## Workflow
+
+**New feature:**
+1. Research with scripts
+2. Create `docs/plan/sprint-{N}-{slug}.md`
+3. Implement following the plan
+4. Create `docs/changelog/{YYYYMMDD}-changelog-{N}-{slug}.md`
+5. Create `docs/test/{YYYYMMDD}-test-{N}-{slug}.md`
+
+**Bug fix:** scripts → trace root cause → fix minimum scope → changelog (no plan needed).
+
+## Hard Rules
+
+- Docs in Vietnamese (UTF-8), code in English
+- No direct DB connections (production/staging)
+- No hardcoded secrets
+- No `any` type (TS) · No `print()` (Python) · No magic numbers
+- API contract changes must update docs immediately

@@ -1,52 +1,107 @@
 # bs-claude-toolkit
 
-Bộ công cụ chuẩn hóa workflow **Claude Code** cho các dự án fullstack.
-
-Tự động phát hiện cấu trúc project — không cần cấu hình, không phụ thuộc tên thư mục.
+Bộ công cụ chuẩn hóa workflow AI coding cho các dự án fullstack.
+Hỗ trợ **Claude Code · Cursor · Codex · Windsurf**.
 
 ---
 
-## Cài đặt (một lần duy nhất)
+## Cài đặt nhanh
+
+### Bước 1 — Clone toolkit (một lần duy nhất)
 
 ```bash
 git clone https://github.com/your-org/bs-claude-toolkit.git ~/.claude/skills/bs-claude-toolkit
 ```
 
-**Xong.** Từ đây `/bs-claude-toolkit` hoạt động trong mọi project trên máy.
+> Claude Code tự nhận `/bs-claude-toolkit` ngay sau khi clone xong — không cần thêm bước nào.
 
-> Muốn tên lệnh ngắn hơn:
-> ```bash
-> git clone https://github.com/your-org/bs-claude-toolkit.git ~/.claude/skills/ctx
-> # → dùng /ctx thay vì /bs-claude-toolkit
-> ```
+Muốn tên lệnh ngắn hơn:
+```bash
+git clone https://github.com/your-org/bs-claude-toolkit.git ~/.claude/skills/ctx
+# → dùng /ctx
+```
+
+### Bước 2 — Cài vào project (chạy từ thư mục project)
+
+```bash
+# Tất cả tools
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py
+
+# Hoặc từng tool
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --tool cursor
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --tool codex
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --tool windsurf
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --tool scripts  # chỉ copy research scripts
+```
 
 ---
 
-## Cập nhật
+## Hỗ trợ theo tool
+
+### Claude Code
+
+| Scope | Cách dùng |
+|-------|-----------|
+| Global | Clone vào `~/.claude/skills/bs-claude-toolkit/` |
+| Invoke | `/bs-claude-toolkit` trong chat |
+| Filter | `/bs-claude-toolkit be` · `/bs-claude-toolkit fe` |
+
+Skill tự phát hiện submodule dựa trên nội dung (có `CLAUDE.md` / `Agents.md` / `docs/`), không phụ thuộc tên thư mục.
+
+---
+
+### Codex (OpenAI)
+
+| Scope | File | Cách install |
+|-------|------|-------------|
+| Global | `~/.codex/AGENTS.md` | `install.py --tool codex --global` |
+| Per-project | `[project]/AGENTS.md` | `install.py --tool codex` |
+| Per-submodule | `[subdir]/AGENTS.md` | Copy thủ công |
+
+Codex đọc theo thứ tự: `~/.codex/AGENTS.md` → root `AGENTS.md` → subdirectory `AGENTS.md`.
+
+Cài global (áp dụng cho mọi project trên máy):
+```bash
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --tool codex --global
+```
+
+---
+
+### Cursor
+
+| Scope | File | Cách install |
+|-------|------|-------------|
+| Per-project | `.cursor/rules/bs-claude-toolkit.mdc` | `install.py --tool cursor` |
+| Global | Settings UI → Rules | Paste nội dung `adapters/cursor.mdc` |
+
+Rule dùng `alwaysApply: true` — tự apply cho mọi session trong project.
+
+---
+
+### Windsurf
+
+| Scope | File | Cách install |
+|-------|------|-------------|
+| Per-project | `.windsurf/rules/bs-claude-toolkit.md` | `install.py --tool windsurf` |
+
+---
+
+## Cập nhật toolkit
 
 ```bash
 cd ~/.claude/skills/bs-claude-toolkit && git pull
 ```
 
----
-
-## Sử dụng trong Claude Code
-
-```
-/bs-claude-toolkit              → load root + tất cả submodule (auto-detect)
-/bs-claude-toolkit be           → load root + submodule có "be" trong tên
-/bs-claude-toolkit fe           → load root + submodule có "fe" trong tên
-/bs-claude-toolkit myapp-be     → load root + submodule khớp "myapp-be"
-```
+Per-project files (`.cursor/rules/`, `AGENTS.md`, v.v.) cần chạy lại `install.py` để cập nhật.
 
 ---
 
 ## Research scripts
 
-Scripts có thể chạy trực tiếp từ toolkit (không cần copy vào project):
+Chạy trực tiếp từ toolkit (không cần copy vào project):
 
 ```bash
-# Tra cứu tài liệu plan/changelog/test
+# Tra cứu plan/changelog/test
 python ~/.claude/skills/bs-claude-toolkit/scripts/doc_context.py <keyword>
 python ~/.claude/skills/bs-claude-toolkit/scripts/doc_context.py --scope be <keyword>
 python ~/.claude/skills/bs-claude-toolkit/scripts/doc_context.py --scope fe <keyword>
@@ -56,21 +111,11 @@ python ~/.claude/skills/bs-claude-toolkit/scripts/code_research.py <keyword>
 python ~/.claude/skills/bs-claude-toolkit/scripts/code_research.py --scope be <keyword>
 ```
 
-> Scripts dùng `CWD` để tìm project root — chạy từ đâu trong project cũng đúng.
+Scripts dùng `CWD` để tìm project root — chạy từ bất kỳ thư mục nào trong project đều đúng.
 
-### Copy scripts vào project (tuỳ chọn)
-
-Hữu ích khi team không muốn cài toolkit trên mọi máy:
-
+Muốn scripts nằm trong project (cho team không có toolkit):
 ```bash
-python ~/.claude/skills/bs-claude-toolkit/scripts/install.py /path/to/project
-# → copy doc_context.py và code_research.py vào project/scripts/
-```
-
-Sau đó team dùng:
-```bash
-python scripts/doc_context.py <keyword>
-python scripts/code_research.py <keyword>
+python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --tool scripts
 ```
 
 ---
@@ -79,51 +124,38 @@ python scripts/code_research.py <keyword>
 
 ```
 bs-claude-toolkit/
-├── SKILL.md              ← Định nghĩa skill /bs-claude-toolkit
+├── SKILL.md                           ← Claude Code global skill
+├── adapters/
+│   ├── cursor.mdc                     ← Cursor rule (alwaysApply)
+│   └── windsurf.md                    ← Windsurf rule
 ├── scripts/
-│   ├── doc_context.py    ← Tra cứu plan/changelog/test theo keyword
-│   ├── code_research.py  ← Tra cứu code theo keyword
-│   └── install.py        ← Copy scripts vào project (tuỳ chọn)
+│   ├── doc_context.py                 ← Tra cứu docs (auto-detect, --scope)
+│   ├── code_research.py               ← Tra cứu code (auto-detect, --scope)
+│   └── install.py                     ← Installer cho từng tool
 └── templates/
-    └── CLAUDE.md         ← Template CLAUDE.md cho project mới
+    ├── CLAUDE.md                      ← Template cho Claude Code projects
+    └── AGENTS.md                      ← Template cho Codex projects
 ```
 
 ---
 
 ## Naming convention được hỗ trợ
 
-Skill và scripts phát hiện submodule dựa trên **nội dung** (có `CLAUDE.md` / `Agents.md` / `docs/`), không phụ thuộc tên thư mục.
+Toolkit phát hiện submodule bằng **nội dung** (có `CLAUDE.md` / `Agents.md` / `docs/`), không phụ thuộc tên.
 
-| Convention | BE dir | FE dir |
-|------------|--------|--------|
+| Convention | BE | FE |
+|------------|----|----|
 | Chuẩn | `backend/` | `frontend/` |
 | Theo tên dự án | `myapp-be/` | `myapp-fe/` |
 | Ngắn | `be/` | `fe/` |
 | Theo role | `api/` | `web/` |
 | Theo role | `server/` | `client/` |
 
-### `--scope` filter
-
-`--scope` khớp **một phần tên** (case-insensitive):
-
-```bash
---scope be   → match: backend, myapp-be, be, server
---scope fe   → match: frontend, myapp-fe, fe, web, client
---scope api  → match: api, myapp-api
-```
-
----
-
-## Setup CLAUDE.md cho project mới
-
-```bash
-cp ~/.claude/skills/bs-claude-toolkit/templates/CLAUDE.md /path/to/project/CLAUDE.md
-# Thay [BE_DIR] và [FE_DIR] bằng tên thư mục thực tế
-```
+`--scope` khớp một phần tên (case-insensitive): `--scope be` match `backend`, `myapp-be`, `be`, `server`.
 
 ---
 
 ## Yêu cầu
 
-- Python 3.8+ (stdlib only, không cần cài thêm package)
-- Claude Code CLI
+- Python 3.8+ (stdlib only)
+- Claude Code CLI (cho `/bs-claude-toolkit`)
