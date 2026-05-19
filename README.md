@@ -8,30 +8,29 @@ A Claude Code skill that enforces a consistent, structured coding workflow acros
 
 ## What it does
 
-When you type `/bs-claude-toolkit` in Claude Code, the skill runs automatically before any task:
+Three sub-commands, each doing real work:
 
-1. **Loads project context** — reads config and submodule structure. On repeat runs, uses a cached stack profile instead of re-reading files (~90% fewer tokens).
+| Command | What happens |
+|---------|-------------|
+| `/bs-claude-toolkit plan [scope] task` | Claude runs research scripts, then **creates** `sprint-N-slug.md` with context, analysis, and implementation steps |
+| `/bs-claude-toolkit review [scope]` | Claude reads `git diff`, then **applies** the stack-specific checklist to the actual changes and outputs findings |
+| `/bs-claude-toolkit [scope]` | Orientation only — shows stack, next sprint number, and the workflow |
 
-2. **Auto-detects your tech stack** — scans `package.json`, `requirements.txt`, `go.mod`, `composer.json`, directory structure, etc. to determine language, framework, architecture pattern, async tech, and database. Writes the result to `.bs-toolkit.json` automatically so future runs use the cache.
-
-3. **Computes the next sprint number** — scans `*/docs/plan/` to find the latest sprint and suggests the correct next number.
-
-4. **Classifies your task** — detects whether it's a new feature, bug fix, refactor, or architecture question from the arguments you pass.
-
-5. **Outputs an action brief** — execution mode, detected stack, next sprint, research commands to run, exact workflow steps, and a stack-specific code review checklist.
-
-The enforced workflow for every task:
-
+**Team split:**
 ```
-Research → Plan → Implement → Self-Review → Changelog → Test doc
+Claude:  /plan  →  [Codex: implement + docs + tests]  →  Claude: /review
 ```
+
+On every run the skill also:
+
+- **Loads project context** — reads config and submodule structure. On repeat runs, uses a cached stack profile instead of re-reading files (~90% fewer tokens).
+- **Auto-detects your tech stack** — scans `package.json`, `requirements.txt`, `go.mod`, etc. Writes the result to `.bs-toolkit.json` so future runs use the cache.
+- **Computes the next sprint number** — scans `*/docs/plan/` to find the latest sprint.
 
 Code review checklist adapts to your stack automatically:
 - **Language rules**: Python, TypeScript, Go, Java/Kotlin, Node, PHP, Ruby
 - **Architecture rules**: layered, MVC, hexagonal, microservices, CQRS
 - **Async rules**: retry, idempotency, dead-letter, status transitions
-
-**Solo and split-team modes** — two developers can work on BE and FE independently without conflicting sprint numbers or shared files.
 
 ---
 
@@ -75,10 +74,18 @@ The skill auto-detects your stack from project files and caches it into `.bs-too
 ## Usage
 
 ```
-/bs-claude-toolkit                    ← full context + action brief
-/bs-claude-toolkit be                 ← focus on backend only
-/bs-claude-toolkit fe                 ← focus on frontend only
-/bs-claude-toolkit fix login bug      ← context + task classification
+# Plan — Claude researches and creates the sprint plan doc
+/bs-claude-toolkit plan fix video retry not triggering
+/bs-claude-toolkit plan be add pagination to orders API
+/bs-claude-toolkit plan fe refactor asset upload flow
+
+# Review — Claude reads git diff and applies the checklist
+/bs-claude-toolkit review
+/bs-claude-toolkit review be          ← focus review on backend
+
+# Brief — orientation only, no files created
+/bs-claude-toolkit                    ← show stack + next sprint + workflow
+/bs-claude-toolkit be                 ← scope to backend only
 ```
 
 ---
@@ -87,7 +94,7 @@ The skill auto-detects your stack from project files and caches it into `.bs-too
 
 ### `SKILL.md`
 
-The core skill file at the repo root. Claude Code loads this automatically when you clone to `~/.claude/skills/`. Contains all the logic for the 6 phases: config loading, stack detection, sprint intelligence, task classification, action brief output, and proactive warnings.
+The core skill file at the repo root. Claude Code loads this automatically when you clone to `~/.claude/skills/`. Contains the logic for 6 phases: config loading, stack detection, sprint intelligence, task classification, mode execution (`plan` / `review` / `brief`), and proactive warnings.
 
 ---
 
