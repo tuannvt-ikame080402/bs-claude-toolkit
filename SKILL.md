@@ -3,88 +3,82 @@ description: Load project context, detect task type, compute next sprint number,
 arguments: [scope | task-description]
 ---
 
-Thực hiện tuần tự các phase sau.
+Execute the following phases in order.
 
 ---
 
 ## PHASE 0 — Config & Stack Cache
 
-### 0a. Đọc project config
-Check `.bs-toolkit.json` ở root:
-- Nếu tồn tại → đọc `team_mode`, `modules`, `shared_docs`, `shared_files`, **`stack_profile`**
-- Nếu không tồn tại → mặc định `team_mode = "solo"`, không có stack_profile
+### 0a. Read project config
+Check `.bs-toolkit.json` at the project root:
+- If found → read `team_mode`, `modules`, `shared_docs`, `shared_files`, **`stack_profile`**
+- If not found → default `team_mode = "solo"`, no stack_profile
 
-### 0b. Đọc personal config (override)
-Check `.bs-toolkit.local.json` ở root (file này gitignored — per-developer):
-- Nếu tồn tại → đọc `default_scope`, override mọi scope detection phía dưới
+### 0b. Read personal config (override)
+Check `.bs-toolkit.local.json` at the project root (gitignored — per-developer):
+- If found → read `default_scope`, overrides all scope detection below
 
-### 0c. Xác định scope cuối cùng
+### 0c. Resolve final scope
 
-Ưu tiên theo thứ tự:
-1. `$ARGUMENTS` (nếu khớp tên module / alias ngắn)
-2. `default_scope` từ `.bs-toolkit.local.json`
-3. Không scope (load tất cả)
+Priority order:
+1. `$ARGUMENTS` (if it matches a module name or short alias)
+2. `default_scope` from `.bs-toolkit.local.json`
+3. No scope (load everything)
 
-Nếu `team_mode = "split"` **và không có scope nào** → **dừng ngay**, hiện:
+If `team_mode = "split"` **and no scope is set** → **stop immediately**, display:
 ```
-⚠️  Split team mode detected. Bạn đang làm việc ở module nào?
+⚠️  Split team mode detected. Which module are you working on?
 
     /bs-claude-toolkit be      → load BE context ([BE_DIR])
     /bs-claude-toolkit fe      → load FE context ([FE_DIR])
-    /bs-claude-toolkit all     → load tất cả (fullstack session)
+    /bs-claude-toolkit all     → load everything (fullstack session)
 
-Tip: Tạo .bs-toolkit.local.json với {"default_scope": "be"} để không cần gõ mỗi lần.
+Tip: Create .bs-toolkit.local.json with {"default_scope": "be"} to skip this prompt.
 ```
 
-### 0d. Kiểm tra Stack Profile Cache
+### 0d. Check Stack Profile Cache
 
-Đây là bước quyết định **đọc bao nhiêu token** cho lần chạy này.
+This step determines **how many tokens** this run will consume.
 
-**Nếu `stack_profile` tồn tại trong `.bs-toolkit.json` và có ít nhất `lang_be` hoặc `lang_fe`:**
-→ **⚡ FAST PATH** — dùng cache, **bỏ qua Phase 1 hoàn toàn**
-  - Nạp trực tiếp: `lang_be`, `lang_fe`, `framework_be`, `framework_fe`, `arch`, `async_tech`, `database`, `custom_rules`, `main_flow`, `api_format`
-  - Token tiêu thụ: ~100 token (chỉ đọc JSON nhỏ)
-  - Nhảy thẳng đến Phase 2
+**If `stack_profile` exists in `.bs-toolkit.json` with at least `lang_be` or `lang_fe`:**
+→ **⚡ FAST PATH** — use cache, **skip Phase 1 entirely**
+  - Load directly: `lang_be`, `lang_fe`, `framework_be`, `framework_fe`, `arch`, `async_tech`, `database`, `custom_rules`, `main_flow`, `api_format`
+  - Token cost: ~100 tokens (reading a small JSON file)
+  - Jump to Phase 2
 
-**Nếu `stack_profile` không tồn tại hoặc rỗng:**
-→ **🔍 FULL PATH** — chạy toàn bộ Phase 1
-  - Token tiêu thụ: ~1500–3000 token (đọc tất cả CLAUDE.md files)
-  - Sau Phase 1d, hiển thị:
-    ```
-    💡 Stack chưa được cache. Chạy lệnh sau để lưu vào .bs-toolkit.json:
-       python ~/.claude/skills/bs-claude-toolkit/scripts/install.py --setup-stack
-    Các lần sau sẽ bỏ qua đọc CLAUDE.md → tiết kiệm ~90% token context loading.
-    ```
+**If `stack_profile` is missing or empty:**
+→ **🔍 FULL PATH** — run all of Phase 1
+  - Token cost: ~1500–3000 tokens (reading all CLAUDE.md files)
 
 ---
 
-## PHASE 1 — Load Context  *(chỉ chạy ở FULL PATH)*
+## PHASE 1 — Load Context  *(FULL PATH only)*
 
 ### 1a. Root context
 - Read `./CLAUDE.md`
-- Read `./Agents.md` nếu tồn tại
+- Read `./Agents.md` if it exists
 
-### 1b. Phát hiện và filter submodule
+### 1b. Detect and filter submodules
 
-**Solo mode:** Load tất cả submodule tìm được (subdir có `CLAUDE.md` / `Agents.md` / `docs/`)
+**Solo mode:** Load all submodules found (subdirs with `CLAUDE.md` / `Agents.md` / `docs/`)
 
-**Split mode với scope:** Chỉ load submodule khớp scope.
-- Dùng mapping từ `modules` trong config: `{ "be": "myapp-be" }` → scope "be" → load `myapp-be/`
-- Nếu không có mapping → fallback partial match trên tên thư mục
+**Split mode with scope:** Load only the submodule matching the scope.
+- Use mapping from config: `{ "be": "myapp-be" }` → scope "be" → load `myapp-be/`
+- If no mapping → fallback to partial directory name match
 
-**Split mode với scope = "all":** Load tất cả, đánh dấu rõ module nào của ai.
+**Split mode with scope = "all":** Load everything, label each module clearly.
 
-### 1c. Load files từ submodule đã chọn
+### 1c. Load files from selected submodules
 - Read `{subdir}/CLAUDE.md`
-- Read `{subdir}/Agents.md` nếu tồn tại
+- Read `{subdir}/Agents.md` if it exists
 
 ### 1d. Auto-detect stack profile
 
-Detect theo **hai nguồn**, ưu tiên từ trên xuống:
+Detect from **two sources**, in priority order:
 
-#### Nguồn 1 — Project files (chính xác nhất)
+#### Source 1 — Project files (most accurate)
 
-Scan các file trong submodule root:
+Scan files in each submodule root:
 
 | File | Language | Framework hints |
 |------|----------|-----------------|
@@ -98,96 +92,96 @@ Scan các file trong submodule root:
 | `Cargo.toml` | Rust | axum→Axum · actix-web→Actix |
 | `*.csproj` / `*.sln` | C# | Microsoft.AspNetCore→ASP.NET Core |
 
-**Database detection** (từ deps):
+**Database detection** (from deps):
 - `pymongo`/`motor`/`mongoengine` → MongoDB
 - `sqlalchemy`/`psycopg2`/`asyncpg` → PostgreSQL
 - `mysql-connector`/`mysql2`/`pg` → MySQL/PostgreSQL
 - `redis`/`ioredis` → Redis
 
-**Architecture detection** (từ directory structure):
-- Có `controller(s)/` + `service(s)/` + `repositor*/` → `layered`
-- Có `models/` + `views/` + `controllers/` → `MVC`
-- Có `domain/` + `ports/` + `adapters/` → `hexagonal`
-- Có `commands/` + `queries/` → `CQRS`
-- Nhiều service directory độc lập → `microservices`
+**Architecture detection** (from directory structure):
+- Has `controller(s)/` + `service(s)/` + `repositor*/` → `layered`
+- Has `models/` + `views/` + `controllers/` → `MVC`
+- Has `domain/` + `ports/` + `adapters/` → `hexagonal`
+- Has `commands/` + `queries/` → `CQRS`
+- Multiple independent service directories → `microservices`
 
-**TypeScript detection**: check `tsconfig.json` hoặc `typescript` trong devDependencies.
+**TypeScript detection**: check `tsconfig.json` or `typescript` in devDependencies.
 
-#### Nguồn 2 — CLAUDE.md / Agents.md (fallback)
+#### Source 2 — CLAUDE.md / Agents.md (fallback)
 
-Nếu project files không đủ rõ, đọc thêm từ:
-- Mục "Tech Stack" table
-- Mục "Coding Conventions" / "Architecture"
-- Mục "Worker" / "Queue" cho async_tech
+If project files are not conclusive, also read:
+- "Tech Stack" table
+- "Coding Conventions" / "Architecture" sections
+- "Worker" / "Queue" sections for async_tech
 
-#### Sau khi detect xong — tự động cache
+#### After detection — auto-cache
 
-Nếu detect được ít nhất `lang_be` hoặc `lang_fe`:
+If at least `lang_be` or `lang_fe` was detected:
 
-1. **Tự động ghi cache** vào `.bs-toolkit.json`:
-   - Đọc `.bs-toolkit.json` (hoặc tạo mới nếu chưa có)
-   - Thêm/cập nhật key `stack_profile` với tất cả giá trị detect được
-   - Ghi lại file (giữ nguyên các key khác như `team_mode`, `modules`, v.v.)
+1. **Auto-write cache** to `.bs-toolkit.json`:
+   - Read `.bs-toolkit.json` (or create it if missing)
+   - Add/update the `stack_profile` key with all detected values
+   - Write back (preserve existing keys like `team_mode`, `modules`, etc.)
 
-2. **Thông báo ngắn** trong action brief:
+2. **Short notice** in action brief:
    ```
    ✓ Stack detected & cached: [BE: framework_be/lang_be] · [FE: framework_fe/lang_fe]
                                [arch] · async: [async_tech] · db: [database]
-     Lần sau sẽ dùng cache — không detect lại.
+     Future runs will use the cache — no re-detection needed.
    ```
 
-Nếu `.bs-toolkit.json` chưa có `team_mode` → tạo file mới với `team_mode: "solo"` và `stack_profile`.
+If `.bs-toolkit.json` did not exist → create it with `team_mode: "solo"` and `stack_profile`.
 
-Shared files (từ config `shared_files`) — dùng để cảnh báo conflict.
+Shared files (from `shared_files` config) — used for conflict warnings.
 
 ---
 
 ## PHASE 2 — Sprint Intelligence
 
-**Solo mode:** Scan TẤT CẢ `*/docs/plan/` → tìm N_max toàn project → next sprint = N_max + 1
+**Solo mode:** Scan ALL `*/docs/plan/` → find N_max across the project → next sprint = N_max + 1
 
-**Split mode với scope:** Chỉ scan `{scoped-submodule}/docs/plan/`:
-- Sprint numbers **độc lập** per-submodule
-- BE có thể đang ở sprint-15, FE đang ở sprint-12 — đây là bình thường, không phải conflict
-- Hiện: "BE next sprint: 16 · FE next sprint: 13" (nếu scope=all)
+**Split mode with scope:** Scan only `{scoped-submodule}/docs/plan/`:
+- Sprint numbers are **independent per submodule**
+- BE on sprint-15, FE on sprint-12 is normal — not a conflict
+- Display: "BE next sprint: 16 · FE next sprint: 13" (if scope=all)
 
-**Lấy N_max:**
-1. Liệt kê files khớp `sprint-{N}-*.md` trong scoped dirs
-2. Extract số N lớn nhất
-3. next = N_max + 1 (nếu không có file nào → next = 1)
-4. Ghi nhớ 3 sprint gần nhất để cho context
+**Finding N_max:**
+1. List files matching `sprint-{N}-*.md` in scoped dirs
+2. Extract the highest N
+3. next = N_max + 1 (if no files found → next = 1)
+4. Remember the 3 most recent sprints for context
 
 ---
 
-## PHASE 3 — Phân tích Task
+## PHASE 3 — Task Analysis
 
-Chỉ thực hiện nếu có task description trong `$ARGUMENTS` (phần còn lại sau scope filter).
+Only runs if a task description is present in `$ARGUMENTS` (the part after scope filtering).
 
-### 3a. Phân loại task
-| Loại | Keywords |
+### 3a. Classify task type
+| Type | Keywords |
 |------|---------|
-| **new-feature** | implement, add, create, build, tạo, thêm |
-| **bug-fix** | fix, bug, lỗi, sửa, broken, không hoạt động |
-| **refactor** | refactor, optimize, clean, tái cấu trúc |
-| **question** | tại sao, how, explain, giải thích, cơ chế |
-| **architecture** | design, plan, kiến trúc, approach, strategy |
+| **new-feature** | implement, add, create, build |
+| **bug-fix** | fix, bug, broken, not working, error |
+| **refactor** | refactor, optimize, clean, restructure |
+| **question** | why, how, explain, what is, mechanism |
+| **architecture** | design, plan, architecture, approach, strategy |
 
-### 3b. Trích keywords cho research
-Lấy noun/domain keywords, bỏ stop words.
-Ví dụ: "fix video retry không trigger" → `video`, `retry`, `trigger`
+### 3b. Extract research keywords
+Take noun/domain keywords, drop stop words.
+Example: "fix video retry not triggering" → `video`, `retry`, `trigger`
 
-### 3c. Conflict check (chỉ split mode)
-Nếu task description hoặc keywords liên quan đến:
-- Root `CLAUDE.md` hoặc files trong `shared_files` config → cảnh báo cần coordination
-- API contract → cảnh báo phải sync với dev còn lại trước khi thay đổi
+### 3c. Conflict check (split mode only)
+If the task description or keywords touch:
+- Root `CLAUDE.md` or files in `shared_files` config → warn about coordination needed
+- API contract → warn that both BE and FE devs must agree before changing
 
 ---
 
 ## PHASE 4 — Resolve Script Path
 
-Kiểm tra theo thứ tự:
-1. `./scripts/doc_context.py` tồn tại → `SCRIPT_CMD = "python scripts/"`
-2. Không có → `SCRIPT_CMD = "python ~/.claude/skills/bs-claude-toolkit/scripts/"`
+Check in order:
+1. `./scripts/doc_context.py` exists → `SCRIPT_CMD = "python scripts/"`
+2. Not found → `SCRIPT_CMD = "python ~/.claude/skills/bs-claude-toolkit/scripts/"`
 
 ---
 
@@ -199,25 +193,25 @@ Kiểm tra theo thứ tự:
 ╚══════════════════════════════════════════════════════════════╝
 
   Mode:        [Planning | Execution]
-  Scope:       [tên submodule đang load, hoặc "all"]
+  Scope:       [loaded submodule name, or "all"]
   Stack:       [BE: framework_be/lang_be] · [FE: framework_fe/lang_fe]
                [arch] · async: [async_tech]
-  Stack src:   [⚡ cached (.bs-toolkit.json) | 🔍 extracted from CLAUDE.md]
-  Next Sprint: [N]  (last: sprint-[N-1]-[tên])
-               [Split mode: hiển thị per-module nếu scope=all]
+  Stack src:   [⚡ cached (.bs-toolkit.json) | 🔍 extracted from project files]
+  Next Sprint: [N]  (last: sprint-[N-1]-[name])
+               [Split mode: show per-module if scope=all]
 
 ──────────────────────────────────────────────────────────────
   OWNERSHIP (split mode only)
 ──────────────────────────────────────────────────────────────
 
   ✏️  Your zone:    [scoped-submodule]/
-                    → Tự do sửa code và docs trong này
+                    → Edit code and docs freely
 
   🤝  Shared zone:  [shared_files list]
-                    → Cần sync với team trước khi sửa
+                    → Sync with team before editing
 
 ──────────────────────────────────────────────────────────────
-  RESEARCH — chạy trước khi bắt đầu
+  RESEARCH — run before starting
 ──────────────────────────────────────────────────────────────
 
   [SCRIPT_CMD]doc_context.py [keywords]
@@ -230,72 +224,72 @@ Kiểm tra theo thứ tự:
 
   new-feature:
     1. Research (doc + code)
-    2. Tạo [module]/docs/plan/sprint-[N]-[slug].md
-    3. Implement theo plan
-    4. Self-review code vừa viết (xem CODE REVIEW bên dưới)
-    5. Tạo [module]/docs/changelog/[DATE]-changelog-[seq]-[slug].md
-    6. Tạo [module]/docs/test/[DATE]-test-[seq]-[slug].md
+    2. Create [module]/docs/plan/sprint-[N]-[slug].md
+    3. Implement following the plan
+    4. Self-review code just written (see CODE REVIEW below)
+    5. Create [module]/docs/changelog/[DATE]-changelog-[seq]-[slug].md
+    6. Create [module]/docs/test/[DATE]-test-[seq]-[slug].md
 
   bug-fix:
     1. Research → trace root cause
-    2. Fix minimum scope, đúng layer
-    3. Self-review code vừa sửa (xem CODE REVIEW bên dưới)
-    4. Tạo [module]/docs/changelog/[DATE]-changelog-[seq]-[slug].md
+    2. Fix minimum scope, correct layer
+    3. Self-review code just changed (see CODE REVIEW below)
+    4. Create [module]/docs/changelog/[DATE]-changelog-[seq]-[slug].md
 
   question / architecture:
-    1. Research → phân tích → trả lời
-    (không cần tạo file)
+    1. Research → analyze → answer
+    (no files needed)
 
 ──────────────────────────────────────────────────────────────
-  CODE REVIEW  (sau mỗi lần implement/fix)
+  CODE REVIEW  (after every implement/fix)
 ──────────────────────────────────────────────────────────────
 
-  ── Universal (mọi stack) ──
-  [ ] Không hardcode secrets, credentials, magic numbers
-  [ ] Tên hàm/biến rõ ràng, self-documenting
-  [ ] Tất cả error path được handle — không silent fail
-  [ ] API contract không thay đổi ngầm → cập nhật docs nếu có
-  [ ] Flow chính không bị phá
+  ── Universal (all stacks) ──
+  [ ] No hardcoded secrets, credentials, or magic numbers
+  [ ] Function/variable names are clear and self-documenting
+  [ ] All error paths handled — no silent failures
+  [ ] API contract not silently changed → update docs if it is
+  [ ] Core application flow not broken
 
   ── Language: [lang_be] · [lang_fe] ──
-  Áp dụng rule tương ứng với ngôn ngữ detect được:
+  Apply rules for the detected language(s):
 
-  Python    → [ ] Không print() · Type hints đầy đủ · f-string
-  TypeScript → [ ] Không `any` · Không `!` non-null trừ khi chắc · strict mode
-  Go        → [ ] Tất cả error return check (không _ bỏ qua) · Không panic() trong lib · Context propagation đúng
-  Java/Kotlin → [ ] Không System.out · Checked exceptions handled · try-with-resources
-  PHP       → [ ] Không var_dump/dd() · PSR logging · Declare types
-  Ruby      → [ ] Không puts/p · Exception handling rõ · frozen_string_literal
-  Node/JS   → [ ] Không console.log · Không callback hell · Promise/async đúng
+  Python     → [ ] No print() · Full type hints · Use f-strings
+  TypeScript → [ ] No `any` · No unsafe `!` non-null · strict mode
+  Go         → [ ] Check all error returns (no `_`) · No panic() in lib · Context propagation
+  Java/Kotlin → [ ] No System.out · Handle checked exceptions · try-with-resources
+  PHP        → [ ] No var_dump/dd() · PSR logging · Declare types
+  Ruby       → [ ] No puts/p · Clear exception handling · frozen_string_literal
+  Node/JS    → [ ] No console.log · No callback hell · Proper async/await
 
   ── Architecture: [arch_pattern] ──
-  Áp dụng rule tương ứng với pattern detect được:
+  Apply rules for the detected pattern:
 
   layered (controller/service/repo)
-    [ ] Không skip layer · Controller chỉ validate+delegate
-    [ ] Service chứa business logic, không query DB trực tiếp
-    [ ] Repository chỉ data access, không business logic
+    [ ] No layer skipping · Controller only validates and delegates
+    [ ] Service owns business logic, does not query DB directly
+    [ ] Repository only does data access, no business logic
 
   MVC
-    [ ] Thin controller · Fat model · View không chứa logic
+    [ ] Thin controller · Fat model · No logic in views
 
   hexagonal / ports-and-adapters
-    [ ] Domain không import infra · Ports là interface · Adapters implement ports
+    [ ] Domain does not import infra · Ports are interfaces · Adapters implement ports
 
   microservices
-    [ ] Không gọi DB của service khác · Giao tiếp qua API/event · Service boundary rõ
+    [ ] No cross-service DB calls · Communicate via API/events · Clear service boundaries
 
   CQRS
-    [ ] Command tách khỏi Query · Read/write model độc lập
+    [ ] Commands separate from Queries · Read/write models are independent
 
   ── Async/Queue: [async_tech] ──
-  Bỏ qua nếu async_tech = "none"
+  Skip if async_tech = "none"
 
-  [ ] Idempotency key có mặt
+  [ ] Idempotency key present
   [ ] max_retries + exponential backoff
   [ ] Dead-letter / failed status handling
-  [ ] Status transition rõ: pending → running → done/failed
-  [ ] FE: loading/error state đủ · Race condition polling · Cleanup on unmount
+  [ ] Clear status transitions: pending → running → done/failed
+  [ ] FE: sufficient loading/error states · Polling race conditions handled · Cleanup on unmount
 
 ──────────────────────────────────────────────────────────────
   FILE NAMING  (today: [YYYYMMDD])
@@ -305,18 +299,18 @@ Kiểm tra theo thứ tự:
   Changelog: [module]/docs/changelog/[DATE]-changelog-[seq]-[slug].md
   Test:      [module]/docs/test/[DATE]-test-[seq]-[slug].md
 
-  [seq] = đọc thư mục trước, đếm file có cùng ngày, +1
+  [seq] = read the directory first, count files with the same date, +1
 
 ──────────────────────────────────────────────────────────────
   DEFINITION OF DONE
 ──────────────────────────────────────────────────────────────
 
-  [ ] Code chạy được local
-  [ ] Test pass: happy + edge + failure case
-  [ ] Changelog tạo xong trong [module]/docs/changelog/
-  [ ] Flow chính không bị phá
-  [ ] API contract không thay đổi ngầm
-  [ ] Không vi phạm language rules ([lang_be]/[lang_fe]) · Không hardcode secrets
+  [ ] Code runs locally
+  [ ] Tests pass: happy + edge + failure cases
+  [ ] Changelog created in [module]/docs/changelog/
+  [ ] Core flow not broken
+  [ ] API contract not silently changed
+  [ ] No language rule violations ([lang_be]/[lang_fe]) · No hardcoded secrets
 
 ══════════════════════════════════════════════════════════════
 ```
@@ -325,19 +319,19 @@ Kiểm tra theo thứ tự:
 
 ## PHASE 6 — Proactive Warnings
 
-- **Thiếu `.bs-toolkit.json`** → "💡 Chưa có config. Chạy `install.py --mode solo` hoặc `--mode split` để setup."
-- **`stack_profile` rỗng (FULL PATH đã chạy)** → "💡 Chạy `install.py --setup-stack` để cache stack → tiết kiệm ~90% token lần sau."
-- **Split mode, chạm shared_files** → "⚠️ File này là shared zone — cần sync với team trước."
-- **Split mode, task liên quan API contract** → "⚠️ API contract thay đổi cần cả BE và FE đồng thuận."
-- **Thiếu `docs/plan/`** trong module → "⚠️ Chưa có docs/plan/ — tạo thư mục trước khi viết plan."
-- **Task là Execution nhưng mode mặc định Planning** → nhắc user confirm.
-- **`stack_profile` có thể stale** (CLAUDE.md vừa được update đáng kể) → "💡 Nếu vừa thay đổi Tech Stack, chạy `install.py --setup-stack` để refresh cache."
+- **Missing `.bs-toolkit.json`** → "💡 No config found. Run `install.py --mode solo` or `--mode split` to set up."
+- **`stack_profile` empty (FULL PATH ran)** → "💡 Stack auto-cached. Future runs will be faster."
+- **Split mode, touching shared_files** → "⚠️ This file is in the shared zone — sync with your team first."
+- **Split mode, task touches API contract** → "⚠️ API contract changes require agreement from both BE and FE."
+- **Missing `docs/plan/`** in module → "⚠️ No docs/plan/ directory — create it before writing a plan."
+- **Task is Execution but default mode is Planning** → ask user to confirm.
+- **`stack_profile` may be stale** (CLAUDE.md recently updated significantly) → "💡 If you changed the Tech Stack, run `install.py --setup-stack` to refresh the cache."
 
 ---
 
 ## Notes
 
-- Sau khi in brief → **dừng, chờ user** — không tự bắt đầu implement
-- Dùng ngày thực tế từ system date cho `[YYYYMMDD]`
-- Split mode: sprint numbers per-submodule là bình thường, không phải bug
-- `.bs-toolkit.local.json` không được commit vào git (phải có trong `.gitignore`)
+- After printing the brief → **stop and wait for the user** — do not start implementing
+- Use the actual system date for `[YYYYMMDD]`
+- Split mode: independent sprint numbers per submodule is normal, not a bug
+- `.bs-toolkit.local.json` must not be committed to git (must be in `.gitignore`)
