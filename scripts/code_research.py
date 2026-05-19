@@ -3,17 +3,23 @@
 code_research.py — Tìm kiếm code theo từ khóa trong project.
 
 Tự động phát hiện cấu trúc project — không cần cấu hình.
+Hỗ trợ mọi naming convention: backend/, frontend/, myapp-be/, myapp-fe/, api/, web/, ...
 
-Chạy từ root project:
-    python scripts/code_research.py <keyword> [keyword2 ...]
+Chạy từ root project (hoặc bất kỳ subdir nào):
+    python scripts/code_research.py [--scope <dir>] <keyword> [keyword2 ...]
+
+Options:
+    --scope <dir>   Chỉ tìm trong submodule có tên chứa <dir> (case-insensitive)
+                    Ví dụ: --scope be  →  chỉ tìm trong backend/, myapp-be/, ...
 
 Ví dụ:
-    python scripts/code_research.py notification toast
-    python scripts/code_research.py useAssets refetchInterval
-    python scripts/code_research.py video_generation celery max_retries
+    python scripts/code_research.py video_pipeline max_retries
+    python scripts/code_research.py --scope be video_pipeline celery
+    python scripts/code_research.py --scope fe useAssets refetchInterval
+    python scripts/code_research.py notification toast sonner
 """
 
-import sys, io, re
+import sys, io, re, argparse
 from pathlib import Path
 
 if sys.stdout.encoding != "utf-8":
@@ -23,6 +29,7 @@ if sys.stderr.encoding != "utf-8":
 
 
 def _find_root() -> Path:
+    """Tìm project root bằng cách đi lên đến khi gặp .git hoặc CLAUDE.md."""
     candidate = Path(__file__).resolve().parent
     if candidate.name == "scripts":
         candidate = candidate.parent
@@ -35,16 +42,22 @@ def _find_root() -> Path:
 ROOT = _find_root()
 
 EXCLUDE_DIRS = frozenset(
-    {"node_modules", "__pycache__", ".next", "venv", ".venv", "dist", "build", ".git", ".turbo"}
+    {"node_modules", "__pycache__", ".next", "venv", ".venv", "dist", "build", ".git", ".turbo", "coverage"}
 )
 
-# Thứ tự ưu tiên: FE patterns trước, BE patterns sau
-FE_DIR_NAMES = ["features", "app", "pages", "src", "components", "hooks", "lib", "utils", "store"]
+# FE: tên thư mục phổ biến chứa source code frontend
+FE_DIR_NAMES = ["features", "app", "pages", "src", "components", "hooks", "lib", "utils", "store", "views"]
 FE_EXTS      = {".ts", ".tsx", ".js", ".jsx"}
 
-BE_DIR_NAMES = ["controllers", "services", "repositories", "tasks", "integrations",
-                "schemas", "models", "routes", "api", "handlers", "middleware"]
-BE_EXTS      = {".py"}
+# BE: tên thư mục phổ biến chứa source code backend
+BE_DIR_NAMES = [
+    "controllers", "services", "repositories", "tasks", "integrations",
+    "schemas", "models", "routes", "api", "handlers", "middleware", "core", "pipelines",
+]
+BE_EXTS = {".py"}
+
+# Tên thư mục trung gian phổ biến trong BE (Flask: app/, Django: app_name/, Celery: worker/)
+BE_NESTED_CONTAINERS = ["app", "worker", "src", "core"]
 
 CONTEXT_LINES  = 1
 MAX_MATCH_FILE = 4
@@ -52,40 +65,69 @@ MAX_FILES_GRP  = 6
 MAX_LINE_LEN   = 120
 
 
-def _discover_search_groups() -> list[tuple[str, Path, set[str]]]:
-    """Auto-discover code search groups từ cấu trúc project thực tế."""
+def _is_submodule(path: Path) -> bool:
+    """Submodule = chứa CLAUDE.md, Agents.md, docs/, hoặc có code patterns."""
+    if (path / "CLAUDE.md").exists() or (path / "Agents.md").exists() or (path / "docs").is_dir():
+        return True
+    # Fallback: thư mục chứa code trực tiếp (FE/BE patterns)
+    for fe_dir in FE_DIR_NAMES[:4]:
+        if (path / fe_dir).is_dir():
+            return True
+    for be_dir in BE_DIR_NAMES[:4]:
+        if (path / be_dir).is_dir():
+            return True
+    return False
+
+
+def _discover_search_groups(scope: str | None) -> list[tuple[str, Path, set[str]]]:
+    """
+    Auto-discover code search groups từ cấu trúc project thực tế.
+    scope: nếu có, chỉ lấy subdirs có tên chứa scope (case-insensitive).
+    """
     groups: list[tuple[str, Path, set[str]]] = []
     seen: set[Path] = set()
 
     def _add(label: str, path: Path, exts: set[str]) -> None:
-        if path in seen or not path.exists():
+        if path in seen or not path.exists() or not path.is_dir():
             return
         seen.add(path)
         groups.append((label, path, exts))
 
-    for subdir in sorted(ROOT.iterdir()):
-        if not subdir.is_dir() or subdir.name in EXCLUDE_DIRS:
+    subdirs = sorted(ROOT.iterdir())
+
+    # Single-app fallback: nếu không có scope và root chứa code trực tiếp
+    if scope is None:
+        for fe_dir in FE_DIR_NAMES:
+            _add(f"» {fe_dir}", ROOT / fe_dir, FE_EXTS)
+        for be_dir in BE_DIR_NAMES:
+            _add(f"» {be_dir}", ROOT / be_dir, BE_EXTS)
+
+    for subdir in subdirs:
+        if not subdir.is_dir():
             continue
-        if subdir.name.startswith("."):
+        if subdir.name in EXCLUDE_DIRS or subdir.name.startswith("."):
+            continue
+        if not _is_submodule(subdir):
+            continue
+        if scope and scope.lower() not in subdir.name.lower():
             continue
 
         name = subdir.name
 
-        # FE patterns
+        # FE code patterns trực tiếp trong subdir
         for fe_dir in FE_DIR_NAMES:
             _add(f"{name} » {fe_dir}", subdir / fe_dir, FE_EXTS)
 
-        # BE patterns — thư mục trực tiếp
+        # BE code patterns — thẳng hoặc qua nested container
         for be_dir in BE_DIR_NAMES:
             _add(f"{name} » {be_dir}", subdir / be_dir, BE_EXTS)
-            # Nested: backend/app/controllers
-            _add(f"{name} » {be_dir}", subdir / "app" / be_dir, BE_EXTS)
-            _add(f"{name} » {be_dir}", subdir / "worker" / be_dir, BE_EXTS)
+            for container in BE_NESTED_CONTAINERS:
+                _add(f"{name} » {be_dir}", subdir / container / be_dir, BE_EXTS)
 
-    # Fallback: nếu không tìm thấy gì, scan toàn bộ root
+    # Nếu không tìm thấy gì: fallback toàn bộ src/
     if not groups:
-        groups.append(("src", ROOT / "src", FE_EXTS | BE_EXTS))
-        groups.append(("root", ROOT, FE_EXTS | BE_EXTS))
+        _add("src", ROOT / "src", FE_EXTS | BE_EXTS)
+        _add("root", ROOT, FE_EXTS | BE_EXTS)
 
     return groups
 
@@ -98,7 +140,8 @@ def _skip(path: Path) -> bool:
     return any(p in EXCLUDE_DIRS for p in path.parts)
 
 
-def _scope(lines: list[str], block_start: int) -> str:
+def _scope_name(lines: list[str], block_start: int) -> str:
+    """Tìm tên function/class chứa block (scan ngược tối đa 25 dòng)."""
     for i in range(block_start - 1, max(-1, block_start - 25), -1):
         s = lines[i].lstrip()
         if s.startswith(("def ", "async def ", "class ")):
@@ -109,8 +152,7 @@ def _scope(lines: list[str], block_start: int) -> str:
             s,
         )
         if m:
-            name = m.group(1) or m.group(2)
-            return f"{name}()"[:70]
+            return f"{(m.group(1) or m.group(2))}()"[:70]
     return ""
 
 
@@ -142,7 +184,7 @@ def search_file(path: Path, pattern: re.Pattern) -> list[list[str]]:
 
     blocks = []
     for s, e, hset in merged[:MAX_MATCH_FILE]:
-        scope = _scope(lines, s)
+        scope = _scope_name(lines, s)
         block: list[str] = []
         if scope:
             block.append(f"    ↳ {scope}")
@@ -155,18 +197,26 @@ def search_file(path: Path, pattern: re.Pattern) -> list[list[str]]:
     return blocks
 
 
-def main() -> None:
-    if len(sys.argv) < 2:
+def _parse_args() -> tuple[str | None, list[str]]:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--scope", default=None)
+    parsed, rest = parser.parse_known_args()
+    if not rest:
         print(__doc__)
         sys.exit(1)
+    return parsed.scope, rest
 
-    keywords = sys.argv[1:]
+
+def main() -> None:
+    scope, keywords = _parse_args()
     pattern = re.compile("|".join(re.escape(k) for k in keywords), re.IGNORECASE | re.UNICODE)
 
-    search_groups = _discover_search_groups()
+    search_groups = _discover_search_groups(scope)
 
     print(f"\n{'='*64}")
     print(f"  CODE RESEARCH: {' + '.join(repr(k) for k in keywords)}")
+    if scope:
+        print(f"  SCOPE: {scope}")
     print(f"  ROOT: {ROOT}")
     print(f"{'='*64}")
 

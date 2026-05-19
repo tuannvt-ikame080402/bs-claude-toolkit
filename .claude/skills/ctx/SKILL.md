@@ -1,39 +1,54 @@
 ---
-description: Load project context from CLAUDE.md and Agents.md before starting any task
+description: Load project context (CLAUDE.md + Agents.md) before any task. Auto-detects all submodule dirs regardless of naming convention.
 arguments: [scope]
 ---
 
-Load project context for scope: "$ARGUMENTS" (backend | frontend | all | auto).
+Load project context. Scope filter (optional): "$ARGUMENTS"
 
-## Instructions
+## Bước 1 — Luôn đọc root context
 
-1. **Đọc root context** — luôn luôn:
-   - Read `./CLAUDE.md`
-   - Read `./Agents.md` (nếu tồn tại)
+- Read `./CLAUDE.md`
+- Read `./Agents.md` nếu tồn tại
 
-2. **Detect scope** — nếu `$ARGUMENTS` trống hoặc là "auto":
-   - Check xem `./backend/` có tồn tại không
-   - Check xem `./frontend/` có tồn tại không
-   - Load cả hai nếu có
+## Bước 2 — Phát hiện submodule dirs
 
-3. **Load backend context** — nếu scope là "backend", "all", hoặc auto-detect thấy `./backend/`:
-   - Read `./backend/CLAUDE.md` (nếu tồn tại)
-   - Read `./backend/Agents.md` (nếu tồn tại)
+Scan tất cả immediate subdirectories của root. Một subdir được coi là **submodule** nếu thỏa mãn ÍT NHẤT MỘT trong:
+- Chứa `CLAUDE.md`
+- Chứa `Agents.md`
+- Chứa thư mục `docs/`
 
-4. **Load frontend context** — nếu scope là "frontend", "all", hoặc auto-detect thấy `./frontend/`:
-   - Read `./frontend/CLAUDE.md` (nếu tồn tại)
-   - Read `./frontend/Agents.md` (nếu tồn tại)
+Không phụ thuộc vào tên thư mục — hoạt động với mọi convention:
+`backend/`, `frontend/`, `myapp-be/`, `myapp-fe/`, `api/`, `web/`, `server/`, `client/`, v.v.
 
-5. **Báo cáo** — sau khi đọc xong, tóm tắt ngắn:
-   - Đã đọc file nào
-   - Project này là loại gì (FE-only / BE-only / fullstack)
-   - Execution mode (Planning / Execution) theo CLAUDE.md
+## Bước 3 — Filter theo scope (nếu có)
 
-## Usage examples
+Nếu `$ARGUMENTS` không trống: chỉ load các submodule mà tên chứa chuỗi `$ARGUMENTS` (case-insensitive).
+
+Ví dụ:
+- `/ctx be` → match `backend`, `myapp-be`, `be`, `server`
+- `/ctx fe` → match `frontend`, `myapp-fe`, `fe`, `web`, `client`
+- `/ctx api` → match `api`, `myapp-api`
+- `/ctx` (không arg) → load TẤT CẢ submodule tìm được
+
+## Bước 4 — Load context từng submodule
+
+Với mỗi submodule đã lọc:
+- Read `{subdir}/CLAUDE.md` nếu tồn tại
+- Read `{subdir}/Agents.md` nếu tồn tại
+
+## Bước 5 — Báo cáo (ngắn gọn)
+
+Sau khi đọc xong, in 1 đoạn tóm tắt:
+- Cấu trúc phát hiện: tên các submodule và loại (BE/FE/unknown)
+- Execution mode từ root CLAUDE.md (Planning / Execution)
+- Workflow rule quan trọng nhất cần nhớ (scripts cần chạy, convention đặt tên file, v.v.)
+
+## Ví dụ sử dụng
 
 ```
-/ctx            → auto-detect và load tất cả
-/ctx backend    → chỉ load root + backend
-/ctx frontend   → chỉ load root + frontend
-/ctx all        → load root + backend + frontend
+/ctx              → load root + tất cả submodule
+/ctx be           → load root + submodule có "be" trong tên
+/ctx fe           → load root + submodule có "fe" trong tên
+/ctx myapp-be     → load root + submodule tên chứa "myapp-be"
+/ctx api          → load root + submodule tên chứa "api"
 ```

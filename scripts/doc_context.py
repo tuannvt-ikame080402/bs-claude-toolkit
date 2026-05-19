@@ -3,17 +3,23 @@
 doc_context.py — Tra cứu tài liệu (plan / changelog / test) theo từ khóa.
 
 Tự động phát hiện cấu trúc project — không cần cấu hình.
+Hỗ trợ mọi naming convention: backend/, frontend/, myapp-be/, myapp-fe/, api/, web/, ...
 
-Chạy từ root project:
-    python scripts/doc_context.py <keyword> [keyword2 ...]
+Chạy từ root project (hoặc bất kỳ subdir nào):
+    python scripts/doc_context.py [--scope <dir>] <keyword> [keyword2 ...]
+
+Options:
+    --scope <dir>   Chỉ tìm trong submodule có tên chứa <dir> (case-insensitive)
+                    Ví dụ: --scope be  →  chỉ tìm trong backend/, myapp-be/, ...
 
 Ví dụ:
-    python scripts/doc_context.py notification toast
-    python scripts/doc_context.py assets pagination total_pages
     python scripts/doc_context.py video generation retry
+    python scripts/doc_context.py --scope be video generation retry
+    python scripts/doc_context.py --scope fe notification toast
+    python scripts/doc_context.py assets pagination total_pages
 """
 
-import sys, io, re
+import sys, io, re, argparse
 from pathlib import Path
 
 if sys.stdout.encoding != "utf-8":
@@ -23,12 +29,10 @@ if sys.stderr.encoding != "utf-8":
 
 
 def _find_root() -> Path:
-    """Tìm project root: thư mục chứa script, rồi đi lên cho đến khi thấy .git hoặc CLAUDE.md."""
+    """Tìm project root bằng cách đi lên đến khi gặp .git hoặc CLAUDE.md."""
     candidate = Path(__file__).resolve().parent
-    # Nếu script nằm trong scripts/ thì root là parent
     if candidate.name == "scripts":
         candidate = candidate.parent
-    # Walk up tìm .git hoặc CLAUDE.md
     for p in [candidate] + list(candidate.parents):
         if (p / ".git").exists() or (p / "CLAUDE.md").exists():
             return p
@@ -37,7 +41,9 @@ def _find_root() -> Path:
 
 ROOT = _find_root()
 
-EXCLUDE_DIRS = frozenset({"node_modules", "__pycache__", ".next", "venv", ".venv", "dist", "build", ".git"})
+EXCLUDE_DIRS = frozenset(
+    {"node_modules", "__pycache__", ".next", "venv", ".venv", "dist", "build", ".git", ".turbo", "coverage"}
+)
 
 CONTEXT_LINES  = 1
 MAX_EXCERPTS   = 2
@@ -47,21 +53,38 @@ MAX_CL_FILES   = 5
 MAX_TEST_FILES = 3
 
 
-def _discover_doc_dirs() -> list[tuple[str, str, Path]]:
-    """Auto-discover tất cả */docs/{plan,changelog,test} trong project."""
+def _is_submodule(path: Path) -> bool:
+    """Submodule = chứa CLAUDE.md, Agents.md, hoặc docs/."""
+    return (
+        (path / "CLAUDE.md").exists()
+        or (path / "Agents.md").exists()
+        or (path / "docs").is_dir()
+    )
+
+
+def _discover_doc_dirs(scope: str | None) -> list[tuple[str, str, Path]]:
+    """
+    Auto-discover tất cả */docs/{plan,changelog,test} trong project.
+    scope: nếu có, chỉ lấy subdirs có tên chứa scope (case-insensitive).
+    """
     result: list[tuple[str, str, Path]] = []
 
-    # Root-level docs/
-    for doc_type in ("plan", "changelog", "test"):
-        p = ROOT / "docs" / doc_type
-        if p.exists():
-            result.append(("root", doc_type, p))
+    # Root-level docs/ (single-app project)
+    if scope is None:
+        for doc_type in ("plan", "changelog", "test"):
+            p = ROOT / "docs" / doc_type
+            if p.exists():
+                result.append(("root", doc_type, p))
 
-    # Subdirectory docs/ (backend/, frontend/, packages/*, apps/*, ...)
+    # Submodule docs/ — bất kỳ tên thư mục nào
     for subdir in sorted(ROOT.iterdir()):
-        if not subdir.is_dir() or subdir.name in EXCLUDE_DIRS:
+        if not subdir.is_dir():
             continue
-        if subdir.name.startswith("."):
+        if subdir.name in EXCLUDE_DIRS or subdir.name.startswith("."):
+            continue
+        if not _is_submodule(subdir):
+            continue
+        if scope and scope.lower() not in subdir.name.lower():
             continue
         for doc_type in ("plan", "changelog", "test"):
             p = subdir / "docs" / doc_type
@@ -122,31 +145,43 @@ def search_file(path: Path, pattern: re.Pattern) -> tuple[int, list[str]]:
     return len(hits), excerpts
 
 
-def main() -> None:
-    if len(sys.argv) < 2:
+def _parse_args() -> tuple[str | None, list[str]]:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--scope", default=None)
+    parsed, rest = parser.parse_known_args()
+    if not rest:
         print(__doc__)
         sys.exit(1)
+    return parsed.scope, rest
 
-    keywords = sys.argv[1:]
+
+def main() -> None:
+    scope, keywords = _parse_args()
     pattern = re.compile("|".join(re.escape(k) for k in keywords), re.IGNORECASE | re.UNICODE)
 
-    doc_dirs = _discover_doc_dirs()
+    doc_dirs = _discover_doc_dirs(scope)
 
     print(f"\n{'='*64}")
     print(f"  DOC CONTEXT: {' + '.join(repr(k) for k in keywords)}")
+    if scope:
+        print(f"  SCOPE: {scope}")
     print(f"  ROOT: {ROOT}")
     print(f"{'='*64}")
 
+    if not doc_dirs:
+        print(f"\n  Không tìm thấy docs/ trong project (scope={scope!r})\n")
+        return
+
     buckets: dict[str, list[dict]] = {"plan": [], "changelog": [], "test": []}
 
-    for side, doc_type, doc_dir in doc_dirs:
+    for label, doc_type, doc_dir in doc_dirs:
         for md in sorted(doc_dir.glob("*.md")):
             count, excerpts = search_file(md, pattern)
             if count:
                 buckets[doc_type].append(
                     {
                         "path": md,
-                        "side": side,
+                        "label": label,
                         "name": md.name,
                         "date_key": _date_key(md.name),
                         "count": count,
@@ -165,26 +200,17 @@ def main() -> None:
 
     shown = len(plans) + len(changelogs) + len(tests)
     print(f"\n  Tìm thấy {total} file  (hiển thị {shown})\n")
+    all_names = [x["name"] for x in plans + changelogs + tests]
+    if all_names:
+        print(f"  → {', '.join(all_names)}\n")
 
-    all_shown = (
-        [x["name"] for x in plans]
-        + [x["name"] for x in changelogs]
-        + [x["name"] for x in tests]
-    )
-    if all_shown:
-        print(f"  → {', '.join(all_shown)}\n")
-
-    for label, items in [
-        ("PLAN", plans),
-        ("CHANGELOG", changelogs),
-        ("TEST", tests),
-    ]:
+    for section_label, items in [("PLAN", plans), ("CHANGELOG", changelogs), ("TEST", tests)]:
         if not items:
             continue
-        print(f"\n{'─'*64}\n  {label}  ({len(items)} file)\n{'─'*64}")
+        print(f"\n{'─'*64}\n  {section_label}  ({len(items)} file)\n{'─'*64}")
         for item in items:
             rel = item["path"].relative_to(ROOT)
-            print(f"\n  [{item['side'].upper()}]  {item['name']}   ({item['count']} match)")
+            print(f"\n  [{item['label'].upper()}]  {item['name']}   ({item['count']} match)")
             print(f"  {rel}")
             for i, ex in enumerate(item["excerpts"]):
                 if i > 0:
