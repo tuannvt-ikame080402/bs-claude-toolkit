@@ -181,6 +181,22 @@ Trước khi render brief, kiểm tra project health:
   [Nếu DoD xong hết + đủ deliverables]: ✓ Sprint [N-1] hoàn thành — sẵn sàng sprint [N]
 
 ──────────────────────────────────────────────────────────────
+  COMMANDS
+──────────────────────────────────────────────────────────────
+
+  /bs-claude-toolkit                          → brief này (tất cả scope)
+  /bs-claude-toolkit be                       → brief chỉ BE
+  /bs-claude-toolkit fe                       → brief chỉ FE
+
+  /bs-claude-toolkit plan [scope] <task>      → research + tạo sprint plan
+  /bs-claude-toolkit plan fix video retry     → plan bug fix (tất cả scope)
+  /bs-claude-toolkit plan be add upload api   → plan scoped vào BE
+
+  /bs-claude-toolkit review                   → review diff tất cả submodule
+  /bs-claude-toolkit review be                → review chỉ BE
+  /bs-claude-toolkit review fe                → review chỉ FE
+
+──────────────────────────────────────────────────────────────
   WORKFLOW
 ──────────────────────────────────────────────────────────────
 
@@ -224,6 +240,10 @@ Trước khi viết plan, xác định những gì sẽ bị ảnh hưởng:
 5. Đánh giá mức rủi ro: **thấp** (không đổi interface), **trung** (đổi interface nhưng backward-compatible), **cao** (breaking change với callers).
 
 **Bước 2 — Tạo file plan**
+
+**Quy tắc slug:** tạo slug từ mô tả task trong `$ARGUMENTS` — lấy keyword chính, kebab-case, tối đa 5 từ, tiếng Anh.
+Ví dụ: `fix video retry not triggering` → `fix-video-retry` · `add upload api for avatars` → `add-upload-avatar-api`
+Slug được chốt khi tạo plan. Tên file changelog, test doc, testlog của sprint này **phải dùng đúng slug này**.
 
 Ghi vào: `[submodule]/docs/plan/sprint-[N]-[slug].md`
 
@@ -326,12 +346,13 @@ ls {submodule}/docs/plan/sprint-*.md   # lấy N lớn nhất
 ```
 
 Đọc toàn bộ file plan. Ghi nhớ:
+- **Sprint slug** — từ tên file: `sprint-[N]-[slug].md` → SPRINT_SLUG = `[slug]`
 - **Loại task** (new-feature / bug-fix / refactor)
 - **Các file cần sửa** — bảng trong "Các file cần sửa"
 - **Các bước** — danh sách trong "Các bước"
 - **Checklist** — các item trong "Code Review Checklist" của plan
 
-Nếu không có file plan → ghi chú "⚠ Không tìm thấy sprint plan — bỏ qua plan compliance check."
+Nếu không có file plan → ghi chú "⚠ Không tìm thấy sprint plan — bỏ qua plan compliance check." Đặt SPRINT_SLUG = "unknown".
 
 **Bước 2 — Đọc thay đổi**
 
@@ -353,6 +374,11 @@ git -C {submodule} diff HEAD~1
 Đọc toàn bộ diff. Lập 2 danh sách:
 - **CHANGED_FILES** — mọi file đã sửa/thêm/xóa
 - **CHANGED_TESTS** — file test trong diff (pattern: `test_*.py`, `*.test.ts`, `*_test.go`, `spec/**`)
+
+**Diff size guard:** đếm tổng dòng thay đổi (tất cả dòng `+` và `-` trên mọi submodule).
+Nếu tổng > 500 dòng → gắn cảnh báo này vào đầu report cuối:
+`⚠ Diff lớn ([N] dòng) — có thể bỏ sót. Cân nhắc chạy lại từng scope: review be / review fe.`
+Vẫn tiếp tục xử lý bình thường.
 
 **Bước 3 — Đọc context dependency**
 
@@ -470,16 +496,38 @@ Với mỗi function/method/class thay đổi hiển thị trong diff:
 
 Giới hạn: kiểm tra tối đa 10 dependent file. Ưu tiên file gần nhất trong call chain.
 
-**Bước 7 — Kiểm tra deliverables (kèm quality check)**
+**Bước 7 — Kiểm tra đồng bộ BE↔FE**  *(bỏ qua nếu SCOPE ≠ all hoặc chỉ có 1 submodule)*
 
-Kiểm tra tồn tại:
+Từ **BE diff**, trích xuất:
+- Endpoint API mới hoặc đã thay đổi: method HTTP + URL + shape request/response
+- Event/message mới hoặc đã thay đổi được publish
+
+Từ **FE diff**, trích xuất:
+- API call mới hoặc đã cập nhật (fetch / axios / api client): URL + method + payload
+- Event consumer mới hoặc đã cập nhật
+
+Cross-check:
+
+| Tình huống | Kiểm tra | Flag |
+|-----------|----------|------|
+| BE thêm endpoint | FE gọi nó trong diff | ⚠ nếu không thấy FE call (có thể là chủ ý) |
+| BE đổi path/method/params | FE call đã cập nhật | ✗ nếu FE vẫn gọi contract cũ |
+| FE gọi endpoint | BE định nghĩa nó | ✗ nếu không thấy BE route |
+| BE đổi response shape | FE destructure/dùng shape đó | ✗ nếu FE expect shape cũ |
+| BE publish event | FE consumer đã cập nhật | ⚠ nếu consumer không được chạm tới |
+
+Giới hạn: chỉ flag mismatch rõ ràng trong diff. Không suy diễn từ file ngoài diff.
+
+**Bước 8 — Kiểm tra deliverables (kèm quality check)**
+
+Kiểm tra tồn tại, dùng SPRINT_SLUG từ Bước 1:
 ```bash
-ls {submodule}/docs/changelog/*-changelog-{slug}*.md
-ls {submodule}/docs/test/*-test-{slug}*.md
-ls {submodule}/docs/test/*-testlog-{slug}*.md
+ls {submodule}/docs/changelog/*-changelog-{SPRINT_SLUG}*.md
+ls {submodule}/docs/test/*-test-{SPRINT_SLUG}*.md
+ls {submodule}/docs/test/*-testlog-{SPRINT_SLUG}*.md
 ```
 
-Nếu không biết slug, kiểm tra file được tạo/sửa hôm nay theo pattern trên.
+Nếu SPRINT_SLUG = "unknown", kiểm tra file được tạo/sửa hôm nay theo pattern trên.
 
 Nếu file **tồn tại**, đọc và kiểm tra chất lượng:
 
@@ -503,7 +551,7 @@ Nếu file **tồn tại**, đọc và kiểm tra chất lượng:
 | test doc  | ✓ / ✗ | ✓ đầy đủ / ⚠ stub |
 | testlog   | ✓ / ✗ | ✓ đầy đủ / ⚠ stub |
 
-**Bước 8 — Output review report**
+**Bước 9 — Output review report**
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
@@ -550,6 +598,14 @@ Nếu file **tồn tại**, đọc và kiểm tra chất lượng:
   Dependent files kiểm tra: [N file]
   ✓  Không phát hiện regression
   ✗  [file:line] — gọi [signature cũ], không tương thích với mới
+
+──────────────────────────────────────────────────────────────
+  🔗 BE↔FE SYNC  (chỉ hiển thị khi scope = all)
+──────────────────────────────────────────────────────────────
+
+  ✓  Tất cả API/event contract nhất quán
+  ⚠  [BE endpoint] — không tìm thấy FE integration trong diff (có thể defer)
+  ✗  [FE call:line] — gọi [path/shape cũ], BE contract đã thay đổi
 
 ──────────────────────────────────────────────────────────────
   📦 DELIVERABLES

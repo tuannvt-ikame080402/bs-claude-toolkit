@@ -188,6 +188,22 @@ Before rendering the brief, silently check project health:
   [If all DoD done + all deliverables present]: ✓ Sprint [N-1] complete — ready for sprint [N]
 
 ──────────────────────────────────────────────────────────────
+  COMMANDS
+──────────────────────────────────────────────────────────────
+
+  /bs-claude-toolkit                          → this brief (all scopes)
+  /bs-claude-toolkit be                       → brief for BE only
+  /bs-claude-toolkit fe                       → brief for FE only
+
+  /bs-claude-toolkit plan [scope] <task>      → research + create sprint plan
+  /bs-claude-toolkit plan fix video retry     → plan for a bug fix (all scopes)
+  /bs-claude-toolkit plan be add upload api   → plan scoped to BE
+
+  /bs-claude-toolkit review                   → review diff in all submodules
+  /bs-claude-toolkit review be                → review BE diff only
+  /bs-claude-toolkit review fe                → review FE diff only
+
+──────────────────────────────────────────────────────────────
   WORKFLOW
 ──────────────────────────────────────────────────────────────
 
@@ -231,6 +247,10 @@ Before writing the plan, identify what else will be affected by this change:
 5. Assess risk level: **thấp** (no interface change), **trung** (interface change but backward-compatible), **cao** (breaking change to callers).
 
 **Step 2 — Create plan file**
+
+**Slug rule:** derive slug from the task description in `$ARGUMENTS` — take noun/verb keywords, kebab-case, max 5 words, English only.
+Examples: `fix video retry not triggering` → `fix-video-retry` · `add upload api for avatars` → `add-upload-avatar-api`
+The slug is locked at plan creation. Changelog, test doc, and testlog filenames for this sprint **must use the exact same slug**.
 
 Write to: `[submodule]/docs/plan/sprint-[N]-[slug].md`
 
@@ -335,12 +355,13 @@ ls {submodule}/docs/plan/sprint-*.md   # pick the highest N
 ```
 
 Read the full plan file. Extract and hold in memory:
+- **Sprint slug** — from filename: `sprint-[N]-[slug].md` → SPRINT_SLUG = `[slug]`
 - **Task type** (new-feature / bug-fix / refactor)
 - **Files to change** — table from "Các file cần sửa"
 - **Implementation steps** — list from "Các bước"
 - **Review checklist** — items from "Code Review Checklist" in the plan
 
-If no plan file exists → note "⚠ No sprint plan found — skipping plan compliance check."
+If no plan file exists → note "⚠ No sprint plan found — skipping plan compliance check." Set SPRINT_SLUG = "unknown".
 
 **Step 2 — Read changes**
 
@@ -362,6 +383,11 @@ git -C {submodule} diff HEAD~1
 Read the full diff. Build two lists:
 - **CHANGED_FILES** — every file that was modified/added/deleted
 - **CHANGED_TESTS** — test files in the diff (pattern: `test_*.py`, `*.test.ts`, `*_test.go`, `spec/**`)
+
+**Diff size guard:** count total changed lines (all `+` and `-` lines across all submodules).
+If total > 500 lines → prepend this warning to the final report:
+`⚠ Large diff ([N] lines total) — coverage may be incomplete. Consider re-running per scope: review be / review fe.`
+Continue processing regardless.
 
 **Step 3 — Load dependency context**
 
@@ -479,16 +505,38 @@ For each changed function/method/class visible in the diff:
 
 Limit: check at most 10 dependent files to control token usage. Prioritize files closest in the call chain.
 
-**Step 7 — Verify deliverables (with quality check)**
+**Step 7 — BE↔FE contract sync**  *(skip if SCOPE ≠ all, or only one submodule present)*
 
-Check existence:
+From the **BE diff**, extract:
+- New or changed API endpoints: HTTP method + URL pattern + request/response shape
+- New or changed events/messages published
+
+From the **FE diff**, extract:
+- API calls added or updated (fetch / axios / api client calls): URL + method + payload shape
+- Event consumers added or updated
+
+Cross-check:
+
+| Scenario | Check | Flag |
+|----------|-------|------|
+| BE adds endpoint | FE calls it in diff | ⚠ if no FE call found (may be intentional) |
+| BE changes endpoint path/method/params | FE call updated to match | ✗ if FE still calls old contract |
+| FE calls endpoint | BE defines it | ✗ if no matching BE route found |
+| BE changes response shape | FE destructures/uses that shape | ✗ if FE expects old shape |
+| BE publishes event | FE consumer updated | ⚠ if consumer not touched |
+
+Limit: only flag mismatches that are clearly visible in the diff. Do not infer from files outside the diff.
+
+**Step 8 — Verify deliverables (with quality check)**
+
+Check existence using SPRINT_SLUG extracted in Step 1:
 ```bash
-ls {submodule}/docs/changelog/*-changelog-{slug}*.md
-ls {submodule}/docs/test/*-test-{slug}*.md
-ls {submodule}/docs/test/*-testlog-{slug}*.md
+ls {submodule}/docs/changelog/*-changelog-{SPRINT_SLUG}*.md
+ls {submodule}/docs/test/*-test-{SPRINT_SLUG}*.md
+ls {submodule}/docs/test/*-testlog-{SPRINT_SLUG}*.md
 ```
 
-If slug is unknown, check for any files created/modified today matching the patterns above.
+If SPRINT_SLUG = "unknown", check for any files created/modified today matching the patterns above.
 
 If a file **exists**, read it and check quality:
 
@@ -512,7 +560,7 @@ If a file **exists**, read it and check quality:
 | test doc  | ✓ / ✗ | ✓ complete / ⚠ stub |
 | testlog   | ✓ / ✗ | ✓ complete / ⚠ stub |
 
-**Step 8 — Output review report**
+**Step 9 — Output review report**
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
@@ -559,6 +607,14 @@ If a file **exists**, read it and check quality:
   Dependents checked: [N files]
   ✓  No regression risk found
   ✗  [file:line] — calls [old_signature], now incompatible
+
+──────────────────────────────────────────────────────────────
+  🔗 BE↔FE SYNC  (only shown when scope = all)
+──────────────────────────────────────────────────────────────
+
+  ✓  All API/event contracts consistent
+  ⚠  [BE endpoint] — FE integration not found in diff (may be deferred)
+  ✗  [FE call:line] — calls [old path/shape], BE contract changed
 
 ──────────────────────────────────────────────────────────────
   📦 DELIVERABLES
