@@ -258,9 +258,24 @@ Codex xong → Claude: /bs-claude-toolkit review [scope]
 
 ### MODE: review  *(Claude đọc git diff + apply checklist)*
 
-**Bước 1 — Đọc thay đổi**
+**Bước 1 — Đọc sprint plan**
 
-Chạy các lệnh này **bên trong từng thư mục submodule** (ví dụ: `git -C be/` và `git -C fe/`), không chạy ở root ngoài. Root ngoài không phải git repo — toàn bộ history nằm trong các submodule.
+Tìm sprint plan mới nhất trong từng submodule trong SCOPE:
+```bash
+ls {submodule}/docs/plan/sprint-*.md   # lấy N lớn nhất
+```
+
+Đọc toàn bộ file plan. Ghi nhớ:
+- **Loại task** (new-feature / bug-fix / refactor)
+- **Các file cần sửa** — bảng trong "Các file cần sửa"
+- **Các bước** — danh sách trong "Các bước"
+- **Checklist** — các item trong "Code Review Checklist" của plan
+
+Nếu không có file plan → ghi chú "⚠ Không tìm thấy sprint plan — bỏ qua plan compliance check."
+
+**Bước 2 — Đọc thay đổi**
+
+Chạy các lệnh này **bên trong từng thư mục submodule**, không chạy ở root ngoài.
 
 Với mỗi submodule trong SCOPE:
 ```bash
@@ -269,74 +284,189 @@ git -C {submodule} diff main...HEAD --stat
 git -C {submodule} diff main...HEAD
 ```
 
-Nếu `main...HEAD` rỗng cho một submodule (đang làm trực tiếp trên main), fallback sang:
+Nếu `main...HEAD` rỗng (đang làm trực tiếp trên main), fallback sang:
 ```bash
 git -C {submodule} diff HEAD~1 --stat
 git -C {submodule} diff HEAD~1
 ```
 
-Đọc toàn bộ diff từ mỗi submodule. Ghi nhận từng file thay đổi và thay đổi cụ thể là gì.
+Đọc toàn bộ diff. Lập 2 danh sách:
+- **CHANGED_FILES** — mọi file đã sửa/thêm/xóa
+- **CHANGED_TESTS** — file test trong diff (pattern: `test_*.py`, `*.test.ts`, `*_test.go`, `spec/**`)
 
-**Bước 2 — Apply checklist vào code thực tế**
+**Bước 3 — Đọc context dependency**
 
-Với mỗi file thay đổi, kiểm tra:
+Với mỗi file trong CHANGED_FILES, quét import/require trong diff. Với module nội bộ nào được import:
+- Đọc file đó để hiểu interface/contract
+- Ghi chú nếu contract thay đổi vs caller kỳ vọng
 
-**Universal**
-- [ ] Không hardcode secrets, credentials, magic numbers
-- [ ] Tên hàm/biến rõ ràng, self-documenting
-- [ ] Tất cả error path được handle — không silent fail
-- [ ] API contract không thay đổi ngầm
+Giới hạn: đọc tối đa 5 file dependency mỗi submodule. Ưu tiên file được import bởi nhiều file thay đổi nhất.
+
+**Bước 4 — Cross-check plan vs diff**
+
+So sánh CHANGED_FILES với "Các file cần sửa" trong plan:
+
+| Trạng thái | Ý nghĩa |
+|-----------|---------|
+| ✓ Đã làm | File trong plan VÀ trong diff |
+| ✗ Thiếu | File trong plan nhưng KHÔNG có trong diff |
+| ⚠ Ngoài plan | File trong diff nhưng KHÔNG có trong plan |
+
+Với mỗi bước trong plan, quét diff tìm dấu hiệu bước đó đã được thực hiện. Nếu không có trace → đánh dấu thiếu.
+
+**Bước 5 — Apply checklist**
+
+Đánh giá từng item dựa trên dòng diff thực tế. Cite `file:line` cho mọi phát hiện.
+
+**5a. Universal**
+- [ ] Không hardcode secrets, credentials, token, magic numbers
+- [ ] Tên rõ ràng, self-documenting — không `tmp`, `data2`, `flag`, `x`
+- [ ] Tất cả error path được handle — không `except: pass`, `catch {}`, bỏ qua lỗi
+- [ ] Không thêm dead code (block comment-out, import không dùng, nhánh không bao giờ chạy)
 - [ ] Flow chính không bị phá
 
-**Language: [lang_be] / [lang_fe]**
+**5b. Security**
+- [ ] Tất cả input từ user được validate/sanitize trước khi dùng
+- [ ] Không nối string SQL — dùng parameterized query / ORM
+- [ ] Không XSS — escape user content trước khi render
+- [ ] Auth/authz được kiểm tra trên mọi endpoint hoặc mutation mới
+- [ ] Không IDOR — kiểm tra ownership trước khi trả về/sửa resource
+- [ ] Dữ liệu nhạy cảm (PII, token) không bị log hoặc lộ trong response
+- [ ] Không deserialize dữ liệu không tin cậy theo kiểu unsafe
+
+**5c. Breaking changes**
+- [ ] Thay đổi DB schema có migration file — không drop column/table ngầm
+- [ ] Shape của API response không đổi; nếu đổi → bump version hoặc cập nhật toàn bộ consumer
+- [ ] Format event/message không đổi; nếu đổi → backward-compatible hoặc cập nhật consumer
+- [ ] Biến môi trường / config key không đổi tên mà không có migration
+
+**5d. Test coverage**
+- [ ] Test được thêm hoặc cập nhật cho mọi behavior thay đổi
+- [ ] Happy path được cover
+- [ ] Ít nhất một edge case (input rỗng, zero, max boundary)
+- [ ] Ít nhất một failure/error case
+- [ ] Tên test mô tả behavior, không mô tả implementation
+- [ ] Không xóa test mà không có test thay thế
+
+**5e. Performance**
+- [ ] Không N+1 query — bulk fetch hoặc eager-load nơi cần
+- [ ] Tất cả DB query có LIMIT hoặc pagination — không `SELECT *` không giới hạn
+- [ ] Không gọi operation nặng trong loop
+- [ ] Cache được invalidate khi data thay đổi
+- [ ] Không blocking I/O trên main/UI thread (FE)
+
+**5f. Language: [lang_be] / [lang_fe]**
 ```
-Python     → Không print() · Type hints đầy đủ · f-string
-TypeScript → Không `any` · Không `!` unsafe · strict mode
-Go         → Check tất cả error (không `_`) · Không panic() trong lib · Context propagation
-Java/Kotlin→ Không System.out · Checked exceptions · try-with-resources
-PHP        → Không var_dump() · PSR logging · Declare types
-Ruby       → Không puts/p · Exception handling · frozen_string_literal
-Node/JS    → Không console.log · async/await đúng
+Python     → Không print() · Type hints đầy đủ · f-string · không bare except
+TypeScript → Không `any` · Không `!` unsafe · strict mode · không implicit return
+Go         → Check tất cả error (không `_`) · Không panic() trong lib · Context propagated
+Java/Kotlin→ Không System.out · Checked exceptions · try-with-resources · nullable rõ ràng
+PHP        → Không var_dump() · PSR logging · Typed properties · không global state
+Ruby       → Không puts/p · Exception handling · frozen_string_literal: true
+Node/JS    → Không console.log · async/await đúng · không unhandled promise rejection
 ```
 
-**Architecture: [arch]**
+**5g. Architecture: [arch]**
 ```
 layered      → Không skip layer · Controller chỉ delegate · Service chứa logic · Repo = data only
-MVC          → Thin controller · Fat model · View không chứa logic
-hexagonal    → Domain ≠ import infra · Ports là interface · Adapters implement ports
-microservices→ Không gọi DB service khác · Giao tiếp qua API/event
-CQRS         → Command ≠ Query · Read/write model độc lập
+MVC          → Thin controller · Fat model · Không business logic trong view
+hexagonal    → Domain không import infra · Port là interface · Adapter implement port
+microservices→ Không gọi trực tiếp DB service khác · Mọi giao tiếp qua API hoặc event
+CQRS         → Command và query hoàn toàn tách biệt · Read/write model độc lập
 ```
 
-**Async/Queue: [async_tech]**  *(bỏ qua nếu none)*
+**5h. Async/Queue: [async_tech]**  *(bỏ qua nếu none)*
 ```
-[ ] Idempotency key · max_retries + exponential backoff · Dead-letter handling
-[ ] Status: pending → running → done/failed
-[ ] FE: loading/error state · Race condition polling · Cleanup on unmount
+[ ] Idempotency key có trên mọi job
+[ ] max_retries đặt + exponential backoff cấu hình
+[ ] Dead-letter queue / failure handler được định nghĩa
+[ ] Job status chuyển đúng: pending → running → done/failed (không stuck)
+[ ] FE: loading + error state render · polling cleanup on unmount · không race condition
 ```
 
-**Bước 3 — Output review report**
+**5i. Checklist từ plan**
+
+Apply thêm mọi item trong "Code Review Checklist" của sprint plan chưa được cover ở trên.
+
+**Bước 6 — Kiểm tra deliverables**
+
+Kiểm tra Codex đã tạo đủ docs cho sprint hiện tại:
+
+```bash
+ls {submodule}/docs/changelog/*-changelog-{slug}*.md
+ls {submodule}/docs/test/*-test-{slug}*.md
+ls {submodule}/docs/test/*-testlog-{slug}*.md
+```
+
+| File | Trạng thái |
+|------|-----------|
+| changelog | ✓ có / ✗ thiếu |
+| test doc  | ✓ có / ✗ thiếu |
+| testlog   | ✓ có / ✗ thiếu |
+
+Nếu không biết slug, kiểm tra file được tạo/sửa hôm nay theo pattern trên.
+
+**Bước 7 — Output review report**
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
   CODE REVIEW  sprint-[N]-[slug]
 ╚══════════════════════════════════════════════════════════════╝
 
-  Thay đổi: [N file]  ·  [+thêm / -xóa dòng]
-
-  ✓  [checklist item] — OK
-  ⚠  [checklist item] — [file:line]  [mô tả vấn đề]
-  ✗  [checklist item] — [file:line]  [vấn đề blocking]
+  Scope:      [submodule(s)]
+  Thay đổi:   [N file]  ·  [+thêm / -xóa dòng]
+  Plan:       [submodule]/docs/plan/sprint-[N]-[slug].md
 
 ──────────────────────────────────────────────────────────────
+  📋 PLAN COMPLIANCE
+──────────────────────────────────────────────────────────────
 
-  [Nếu pass hết]:
-  LGTM — [N] check passed.
-  Next → Codex: tạo changelog + test docs nếu chưa xong.
+  ✓ / ✗  [file] — đã làm / thiếu
+  ⚠       [file] — ngoài plan  [lý do ngắn]
+  ✗       Bước [N]: "[nội dung bước]" — không có dấu vết trong diff
 
-  [Nếu có vấn đề]:
-  [N] vấn đề — quay lại Codex để fix trước khi tạo docs.
-  [Từng vấn đề: file:line + cần fix gì]
+──────────────────────────────────────────────────────────────
+  🔍 CODE QUALITY
+──────────────────────────────────────────────────────────────
+
+  ✓  [check] — OK
+  ⚠  [check] — [file:line]  [vấn đề không blocking]
+  ✗  [check] — [file:line]  [vấn đề blocking: cần fix gì]
+
+──────────────────────────────────────────────────────────────
+  🔒 SECURITY
+──────────────────────────────────────────────────────────────
+
+  ✓ / ⚠ / ✗  [từng security check kèm file:line nếu có vấn đề]
+
+──────────────────────────────────────────────────────────────
+  🧪 TESTS
+──────────────────────────────────────────────────────────────
+
+  ✓ / ⚠ / ✗  [từng test check]
+  Test đã sửa: [danh sách test file]
+
+──────────────────────────────────────────────────────────────
+  📦 DELIVERABLES
+──────────────────────────────────────────────────────────────
+
+  changelog  ✓ / ✗
+  test doc   ✓ / ✗
+  testlog    ✓ / ✗
+
+──────────────────────────────────────────────────────────────
+  VERDICT
+──────────────────────────────────────────────────────────────
+
+  [Nếu có blocking (✗)]:
+  ✗ [N] vấn đề blocking — quay lại Codex trước khi merge.
+  Cần fix:
+    1. [file:line] — [cần fix gì]
+    2. ...
+
+  [Nếu chỉ có warning hoặc pass hết]:
+  ✓ LGTM — [N] check passed · [M] warning (không blocking).
+  [Nếu thiếu docs]: Next → Codex: tạo docs còn thiếu.
 
 ══════════════════════════════════════════════════════════════
 ```

@@ -267,9 +267,24 @@ When Codex is done → Claude: /bs-claude-toolkit review [scope]
 
 ### MODE: review  *(Claude reads git diff + applies checklist)*
 
-**Step 1 — Read changes**
+**Step 1 — Load sprint plan context**
 
-Run these commands **inside each scoped submodule directory** (e.g. `git -C be/` and `git -C fe/`), not at the outer repo root. The outer repo is not a git repo — all history lives inside the submodules.
+Find the latest sprint plan in each scoped submodule:
+```bash
+ls {submodule}/docs/plan/sprint-*.md   # pick the highest N
+```
+
+Read the full plan file. Extract and hold in memory:
+- **Task type** (new-feature / bug-fix / refactor)
+- **Files to change** — table from "Các file cần sửa"
+- **Implementation steps** — list from "Các bước"
+- **Review checklist** — items from "Code Review Checklist" in the plan
+
+If no plan file exists → note "⚠ No sprint plan found — skipping plan compliance check."
+
+**Step 2 — Read changes**
+
+Run these commands **inside each scoped submodule directory**, not at the outer repo root.
 
 For each submodule in SCOPE:
 ```bash
@@ -278,74 +293,189 @@ git -C {submodule} diff main...HEAD --stat
 git -C {submodule} diff main...HEAD
 ```
 
-If `main...HEAD` is empty for a submodule (working on main directly), fall back to:
+If `main...HEAD` is empty (working on main directly), fall back to:
 ```bash
 git -C {submodule} diff HEAD~1 --stat
 git -C {submodule} diff HEAD~1
 ```
 
-Read the full diff from each submodule. Note every changed file and what changed.
+Read the full diff. Build two lists:
+- **CHANGED_FILES** — every file that was modified/added/deleted
+- **CHANGED_TESTS** — test files in the diff (pattern: `test_*.py`, `*.test.ts`, `*_test.go`, `spec/**`)
 
-**Step 2 — Apply checklist to the actual diff**
+**Step 3 — Load dependency context**
 
-For each changed file, evaluate:
+For each file in CHANGED_FILES, scan its import/require statements in the diff. For any imported module that is *also* local (not a third-party package):
+- Read that file to understand its interface/contract
+- Note if the contract has changed vs what callers expect
 
-**Universal**
-- [ ] No hardcoded secrets, credentials, or magic numbers
-- [ ] Clear, self-documenting names
-- [ ] All error paths handled — no silent failures
-- [ ] API contract not silently changed
+Limit: read at most 5 dependency files per submodule to control token usage. Prioritize files that are imported by *multiple* changed files.
+
+**Step 4 — Cross-check plan vs diff**
+
+Compare CHANGED_FILES against the plan's "Các file cần sửa":
+
+| Status | Meaning |
+|--------|---------|
+| ✓ Implemented | File in plan AND in diff |
+| ✗ Missing | File in plan but NOT in diff |
+| ⚠ Unplanned | File in diff but NOT in plan |
+
+For each implementation step in the plan, scan the diff for evidence it was done. If a step has no trace in the diff → flag as missing.
+
+**Step 5 — Apply checklist**
+
+Evaluate every item against the actual diff lines. Cite `file:line` for every finding.
+
+**5a. Universal**
+- [ ] No hardcoded secrets, credentials, tokens, or magic numbers
+- [ ] Clear, self-documenting names — no `tmp`, `data2`, `flag`, `x`
+- [ ] All error paths handled — no silent `except: pass`, `catch {}`, ignored errors
+- [ ] No dead code added (commented-out blocks, unused imports, unreachable branches)
 - [ ] Core application flow not broken
 
-**Language: [lang_be] / [lang_fe]**
+**5b. Security**
+- [ ] All user-supplied input validated/sanitized before use
+- [ ] No SQL built by string concatenation — use parameterized queries / ORM
+- [ ] No XSS — user content escaped before rendering
+- [ ] Auth/authz enforced on every new endpoint or mutation
+- [ ] No IDOR — ownership checked before returning/modifying resources
+- [ ] Sensitive data (PII, tokens) not logged or exposed in responses
+- [ ] No unsafe deserialization of untrusted data
+
+**5c. Breaking changes**
+- [ ] DB schema changes have a migration file — no silent column/table drops
+- [ ] API response shape unchanged; if changed → version bumped or all consumers updated
+- [ ] Event/message format unchanged; if changed → backward-compatible or consumers updated
+- [ ] Environment variables / config keys not renamed without migration
+
+**5d. Test coverage**
+- [ ] Tests added or updated for every changed behavior
+- [ ] Happy path covered
+- [ ] At least one edge case covered (empty input, zero, max boundary)
+- [ ] At least one failure/error case covered
+- [ ] Test names describe behavior, not implementation (`test_should_return_404_when_not_found`, not `test_func`)
+- [ ] No tests deleted without replacement
+
+**5e. Performance**
+- [ ] No N+1 queries — bulk fetch or eager-load where applicable
+- [ ] All DB queries have a LIMIT or pagination — no unbounded `SELECT *`
+- [ ] Expensive operations not called in a loop
+- [ ] Cache invalidated where data changed
+- [ ] No blocking I/O on the main/UI thread (FE)
+
+**5f. Language: [lang_be] / [lang_fe]**
 ```
-Python     → No print() · Full type hints · f-strings
-TypeScript → No `any` · No unsafe `!` · strict mode
-Go         → Check all errors (no `_`) · No panic() in lib · Context propagation
-Java/Kotlin→ No System.out · Checked exceptions · try-with-resources
-PHP        → No var_dump() · PSR logging · Declare types
-Ruby       → No puts/p · Exception handling · frozen_string_literal
-Node/JS    → No console.log · Proper async/await
+Python     → No print() · Full type hints · f-strings · no bare except
+TypeScript → No `any` · No unsafe `!` · strict mode · no implicit returns
+Go         → All errors checked (no `_`) · No panic() in lib code · Context propagated
+Java/Kotlin→ No System.out · Checked exceptions · try-with-resources · nullability
+PHP        → No var_dump() · PSR logging · Typed properties · no global state
+Ruby       → No puts/p · Exception handling · frozen_string_literal: true
+Node/JS    → No console.log · Proper async/await · No unhandled promise rejections
 ```
 
-**Architecture: [arch]**
+**5g. Architecture: [arch]**
 ```
-layered      → No layer skipping · Controller delegates · Service owns logic · Repo = data only
-MVC          → Thin controller · Fat model · No logic in views
-hexagonal    → Domain ≠ infra imports · Ports = interfaces · Adapters implement ports
-microservices→ No cross-service DB calls · Communicate via API/events
-CQRS         → Commands ≠ Queries · Read/write models independent
-```
-
-**Async/Queue: [async_tech]**  *(skip if none)*
-```
-[ ] Idempotency key · max_retries + exponential backoff · Dead-letter handling
-[ ] Status: pending → running → done/failed
-[ ] FE: loading/error states · Polling race conditions · Cleanup on unmount
+layered      → No layer skipping · Controller only delegates · Service owns logic · Repo = data only
+MVC          → Thin controller · Fat model · No business logic in views
+hexagonal    → Domain has zero infra imports · Ports are interfaces · Adapters implement ports
+microservices→ No direct cross-service DB access · All cross-service calls via API or events
+CQRS         → Commands and queries fully separate · Read/write models independent
 ```
 
-**Step 3 — Output review report**
+**5h. Async/Queue: [async_tech]**  *(skip if none)*
+```
+[ ] Idempotency key present on every job
+[ ] max_retries set + exponential backoff configured
+[ ] Dead-letter queue / failure handler defined
+[ ] Job status transitions: pending → running → done/failed (no stuck states)
+[ ] FE: loading + error states rendered · polling cleaned up on unmount · no race conditions
+```
+
+**5i. Plan checklist items**
+
+Apply every item from the "Code Review Checklist" section of the sprint plan that is not already covered above.
+
+**Step 6 — Verify deliverables**
+
+Check that Codex has created all required docs for the current sprint slug:
+
+```bash
+ls {submodule}/docs/changelog/*-changelog-{slug}*.md
+ls {submodule}/docs/test/*-test-{slug}*.md
+ls {submodule}/docs/test/*-testlog-{slug}*.md
+```
+
+| File | Status |
+|------|--------|
+| changelog | ✓ exists / ✗ missing |
+| test doc  | ✓ exists / ✗ missing |
+| testlog   | ✓ exists / ✗ missing |
+
+If slug is unknown, check for any files created/modified today matching the patterns above.
+
+**Step 7 — Output review report**
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
   CODE REVIEW  sprint-[N]-[slug]
 ╚══════════════════════════════════════════════════════════════╝
 
+  Scope:   [submodule(s)]
   Changed: [N files]  ·  [+added / -removed lines]
-
-  ✓  [checklist item] — OK
-  ⚠  [checklist item] — [file:line]  [description]
-  ✗  [checklist item] — [file:line]  [blocking issue]
+  Plan:    [submodule]/docs/plan/sprint-[N]-[slug].md
 
 ──────────────────────────────────────────────────────────────
+  📋 PLAN COMPLIANCE
+──────────────────────────────────────────────────────────────
 
-  [If all pass]:
-  LGTM — [N] checks passed.
-  Next → Codex: create changelog + test docs if not done yet.
+  ✓ / ✗  [file] — implemented / missing
+  ⚠       [file] — unplanned change  [brief reason]
+  ✗       Step [N]: "[step text]" — no evidence in diff
 
-  [If issues found]:
-  [N] issue(s) found — return to Codex to fix before documenting.
-  [Each issue: file:line + what to fix]
+──────────────────────────────────────────────────────────────
+  🔍 CODE QUALITY
+──────────────────────────────────────────────────────────────
+
+  ✓  [check] — OK
+  ⚠  [check] — [file:line]  [non-blocking issue]
+  ✗  [check] — [file:line]  [blocking issue: what to fix]
+
+──────────────────────────────────────────────────────────────
+  🔒 SECURITY
+──────────────────────────────────────────────────────────────
+
+  ✓ / ⚠ / ✗  [each security check with file:line if flagged]
+
+──────────────────────────────────────────────────────────────
+  🧪 TESTS
+──────────────────────────────────────────────────────────────
+
+  ✓ / ⚠ / ✗  [each test check]
+  Tests changed: [list of test files touched]
+
+──────────────────────────────────────────────────────────────
+  📦 DELIVERABLES
+──────────────────────────────────────────────────────────────
+
+  changelog  ✓ / ✗
+  test doc   ✓ / ✗
+  testlog    ✓ / ✗
+
+──────────────────────────────────────────────────────────────
+  VERDICT
+──────────────────────────────────────────────────────────────
+
+  [If blocking issues (✗)]:
+  ✗ [N] blocking issue(s) — return to Codex before merging.
+  Priority fixes:
+    1. [file:line] — [what to fix]
+    2. ...
+
+  [If only warnings (⚠) or all pass]:
+  ✓ LGTM — [N] checks passed · [M] warnings (non-blocking).
+  [If deliverables missing]: Next → Codex: create missing docs.
 
 ══════════════════════════════════════════════════════════════
 ```
