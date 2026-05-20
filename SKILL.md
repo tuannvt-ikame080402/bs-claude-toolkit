@@ -269,19 +269,22 @@ When Codex is done → Claude: /bs-claude-toolkit review [scope]
 
 **Step 1 — Read changes**
 
+Run these commands **inside each scoped submodule directory** (e.g. `git -C be/` and `git -C fe/`), not at the outer repo root. The outer repo is not a git repo — all history lives inside the submodules.
+
+For each submodule in SCOPE:
 ```bash
-git log --oneline -10
-git diff main...HEAD --stat
-git diff main...HEAD
+git -C {submodule} log --oneline -10
+git -C {submodule} diff main...HEAD --stat
+git -C {submodule} diff main...HEAD
 ```
 
-If `main...HEAD` is empty (working on main directly), fall back to:
+If `main...HEAD` is empty for a submodule (working on main directly), fall back to:
 ```bash
-git diff HEAD~1 --stat
-git diff HEAD~1
+git -C {submodule} diff HEAD~1 --stat
+git -C {submodule} diff HEAD~1
 ```
 
-Read the full diff. Note every changed file and what changed.
+Read the full diff from each submodule. Note every changed file and what changed.
 
 **Step 2 — Apply checklist to the actual diff**
 

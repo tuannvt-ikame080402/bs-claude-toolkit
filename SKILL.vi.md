@@ -260,19 +260,22 @@ Codex xong → Claude: /bs-claude-toolkit review [scope]
 
 **Bước 1 — Đọc thay đổi**
 
+Chạy các lệnh này **bên trong từng thư mục submodule** (ví dụ: `git -C be/` và `git -C fe/`), không chạy ở root ngoài. Root ngoài không phải git repo — toàn bộ history nằm trong các submodule.
+
+Với mỗi submodule trong SCOPE:
 ```bash
-git log --oneline -10
-git diff main...HEAD --stat
-git diff main...HEAD
+git -C {submodule} log --oneline -10
+git -C {submodule} diff main...HEAD --stat
+git -C {submodule} diff main...HEAD
 ```
 
-Nếu `main...HEAD` rỗng (đang làm việc trực tiếp trên main), fallback sang:
+Nếu `main...HEAD` rỗng cho một submodule (đang làm trực tiếp trên main), fallback sang:
 ```bash
-git diff HEAD~1 --stat
-git diff HEAD~1
+git -C {submodule} diff HEAD~1 --stat
+git -C {submodule} diff HEAD~1
 ```
 
-Đọc toàn bộ diff. Ghi nhận từng file thay đổi và thay đổi cụ thể là gì.
+Đọc toàn bộ diff từ mỗi submodule. Ghi nhận từng file thay đổi và thay đổi cụ thể là gì.
 
 **Bước 2 — Apply checklist vào code thực tế**
 
