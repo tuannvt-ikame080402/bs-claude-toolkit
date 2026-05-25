@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(rtk git *)"
+      "Bash(rtk git *)",
+      "Bash(rtk grep *)",
+      "Bash(python -c ' *)",
+      "Bash(rtk ls *)",
+      "PowerShell(Get-ChildItem *)"
     ]
   }
 }
