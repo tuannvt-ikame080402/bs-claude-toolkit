@@ -1,6 +1,6 @@
 # bs-claude-toolkit
 
-A Claude Code skill that runs a structured, 5-step AI-assisted sprint workflow — from planning through integration testing to final review.
+A Claude Code skill that runs a structured, 3-step AI-assisted sprint workflow — from planning (with test scaffold) through implementation to final review.
 
 > 🇻🇳 [Đọc bằng tiếng Việt](README.vi.md)
 
@@ -14,15 +14,12 @@ A Claude Code skill that runs a structured, 5-step AI-assisted sprint workflow �
 ├───┬─────────────────────────────────────────────────────────────────────────┤
 │ 1 │  Claude  /bs-claude-toolkit plan [scope] <task>                         │
 │   │          → Sprint plan · Impact analysis · Risk assessment              │
+│   │          → Contract test scaffold · E2E scaffold · Test plan doc        │
 ├───┼─────────────────────────────────────────────────────────────────────────┤
-│ 2 │  Codex   Implement following the plan                                   │
+│ 2 │  Codex   Implement · Fill test TODOs · Run tests                        │
+│   │          → Create changelog + testlog                                   │
 ├───┼─────────────────────────────────────────────────────────────────────────┤
-│ 3 │  Claude  /bs-claude-toolkit test [scope]                                │
-│   │          → Contract tests (BE↔FE) · E2E scaffold · Test plan doc        │
-├───┼─────────────────────────────────────────────────────────────────────────┤
-│ 4 │  Codex   Fill test logic · Run tests · Create changelog + testlog       │
-├───┼─────────────────────────────────────────────────────────────────────────┤
-│ 5 │  Claude  /bs-claude-toolkit review [scope]                              │
+│ 3 │  Claude  /bs-claude-toolkit review [scope]                              │
 │   │          → Code quality · Security · Regression check · Deliverables   │
 └───┴─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -35,8 +32,8 @@ A Claude Code skill that runs a structured, 5-step AI-assisted sprint workflow �
 
 | Command | Who | What it produces |
 |---------|-----|-----------------|
-| `/bs-claude-toolkit plan [scope] <task>` | Claude | `sprint-N-slug.md` — context, analysis, impact, risk, test cases |
-| `/bs-claude-toolkit test [scope]` | Claude | Contract test scaffold + E2E scaffold + test plan doc |
+| `/bs-claude-toolkit plan [scope] <task>` | Claude | `sprint-N-slug.md` + test scaffold — context, analysis, impact, risk, test cases |
+| `/bs-claude-toolkit test [scope]` | Claude | Contract test scaffold + E2E scaffold + test plan doc *(standalone — optional)* |
 | `/bs-claude-toolkit review [scope]` | Claude | Review report — plan compliance, code quality, security, regression, deliverables |
 | `/bs-claude-toolkit [scope]` | Claude | Project brief — stack, sprint health, DoD status, next action |
 
@@ -82,7 +79,9 @@ File: be/services/video_service.py:143
 
 ---
 
-### `/test` — Integration test generation
+### `/test` — Integration test generation *(standalone)*
+
+> **In the main workflow, test scaffold is generated automatically at the end of `/plan`.** Use `/test` as a standalone command when you need to regenerate scaffolds after implementation (e.g. scope changed, endpoints evolved).
 
 Claude reads the diff, extracts the API contract surface, and writes scaffold files Codex fills in:
 
@@ -92,7 +91,7 @@ E2E tests       →  frontend/tests/e2e/{slug}.spec.{ext}
 Test plan doc   →  {submodule}/docs/test/{YYYYMMDD}-{HHMM}-test-{slug}.md
 ```
 
-**Example** — after Codex implements the video retry fix:
+**Example** — standalone regeneration after scope change:
 
 ```
 /bs-claude-toolkit test
@@ -239,12 +238,12 @@ The skill auto-detects your stack from project files and caches it into `.bs-too
 /bs-claude-toolkit plan be add pagination to orders API
 /bs-claude-toolkit plan fe refactor asset upload flow
 
-# Generate integration tests after Codex implements
+# Regenerate tests standalone (optional — plan already generates scaffold)
 /bs-claude-toolkit test
 /bs-claude-toolkit test be          ← contract tests for BE only
 /bs-claude-toolkit test fe          ← E2E tests for FE only
 
-# Review after Codex fills tests and creates docs
+# Review after Codex implements, runs tests, and creates docs
 /bs-claude-toolkit review
 /bs-claude-toolkit review be        ← focus review on backend
 
